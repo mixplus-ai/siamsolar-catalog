@@ -81,7 +81,9 @@
     .modal-backdrop { background: rgba(6,18,46,.6); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
     .sheet { animation: sheetUp .25s ease-out; }
     @keyframes sheetUp { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
-    .fade-in { animation: fadeIn .3s ease-out both; }
+    .fade-in { animation: fadeIn .3s ease-out backwards; }
+    .brand-icon { transition: transform .2s, box-shadow .2s; cursor: pointer; }
+    .brand-icon:hover { transform: scale(1.05); }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
     .fab-pulse::after { content: ''; position: absolute; inset: 0; border-radius: 9999px; box-shadow: 0 0 0 0 rgba(6,199,85,.6); animation: pulse 2.2s infinite; }
@@ -117,11 +119,11 @@
     // logo: ใส่ลิงก์รูปโลโก้ (ลิงก์ Google Drive ได้) หรือไฟล์ในโฟลเดอร์ logos/ เช่น 'logos/kstar.png'
     //       ถ้าเว้นว่าง จะแสดงชื่อแบรนด์เป็นตัวอักษรสีประจำแบรนด์แทน
     const BRANDS = [
-      { name: 'SolarEdge',     color: '#e11d2e', logo: '' },
-      { name: 'KSTAR',         color: '#1d6fe0', logo: '' },
+      { name: 'SolarEdge',     color: '#dc2626', logo: '' },
+      { name: 'KSTAR',         color: '#2563eb', logo: '' },
       { name: 'Sunwoda',       color: '#16a34a', logo: '' },
       { name: 'Leapton Solar', color: '#f97316', logo: '' },
-      { name: 'Solar PPM',     color: '#38bdf8', logo: '' },
+      { name: 'Solar PPM',     color: '#60a5fa', logo: '' },
       { name: 'LONGi',         color: '#b91c1c', logo: '' },
       { name: 'TCL',           color: '#ef4444', logo: '' }
     ];
@@ -183,7 +185,7 @@
           <h2 class="font-head text-2xl sm:text-3xl font-semibold text-navy-900">เลือกแบรนด์สินค้า</h2>
           <p class="text-gray-500 mt-1">แตะที่แบรนด์เพื่อดูรายการสินค้าทั้งหมด</p>
         </div>
-        <div id="brandGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5"></div>
+        <div id="brandGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-5 max-w-5xl mx-auto"></div>
       </section>
 
       <!-- หน้ารายการสินค้า (ตามแบรนด์ หรือผลการค้นหา) -->
@@ -656,21 +658,21 @@
       const src = logoSrc(b.logo);
       const big = size === 'lg';
       if (src) return `<img src="${esc(src)}" alt="${esc(b.name)}" class="${big ? 'max-h-16 sm:max-h-20 max-w-[85%]' : 'h-9 w-9 sm:h-11 sm:w-11 rounded-xl bg-white border border-gray-200 p-1'} object-contain">`;
-      if (big) return `<span class="font-head font-bold text-2xl sm:text-3xl tracking-tight text-center leading-tight px-2" style="color:${b.color}">${esc(b.name)}</span>`;
+      if (big) return `<span class="font-head font-bold text-xl sm:text-2xl leading-tight" style="color:${b.color}">${esc(b.name)}</span>`;
       return `<span class="h-9 w-9 sm:h-11 sm:w-11 rounded-xl grid place-items-center text-white font-head font-bold text-sm sm:text-base" style="background:${b.color}">${esc(b.name.slice(0, 1))}</span>`;
     }
 
+    // ปุ่มแบรนด์สไตล์เดียวกับเวอร์ชันแรก (พื้นขาว ตัวหนังสือและขอบล่างสีประจำแบรนด์)
     function renderBrandGrid() {
       const brands = brandList();
-      document.getElementById('brandGrid').innerHTML = brands.map((b, i) => `
-        <button onclick="openBrand(${esc(JSON.stringify(b.name))})" class="card fade-in group bg-white rounded-2xl shadow-card overflow-hidden text-left flex flex-col" style="animation-delay:${i * 40}ms">
-          <span class="h-1.5 w-full" style="background:${b.color}"></span>
-          <span class="aspect-[3/2] grid place-items-center p-4 bg-gradient-to-b from-white to-gray-50">${brandMark(b, 'lg')}</span>
-          <span class="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-            <span class="text-sm text-gray-500"><b class="text-navy-900 font-head">${b.count}</b> สินค้า</span>
-            <span class="w-8 h-8 rounded-full bg-navy-50 text-navy-700 grid place-items-center group-hover:bg-navy-900 group-hover:text-white transition"><i class="fas fa-arrow-right text-xs"></i></span>
-          </span>
-        </button>`).join('');
+      const tile = (key, label, color, count, mark, i) => `
+        <button onclick="openBrand(${esc(JSON.stringify(key))})" class="brand-icon fade-in bg-white rounded-lg shadow hover:shadow-lg font-bold border-b-4 px-3 py-6 sm:py-9 flex flex-col items-center justify-center gap-2 text-center" style="color:${color};border-color:${color};animation-delay:${i * 40}ms">
+          ${mark}
+          <span class="text-xs sm:text-sm font-normal text-gray-500">${count} สินค้า <i class="fas fa-chevron-right text-[10px] ml-0.5"></i></span>
+        </button>`;
+      document.getElementById('brandGrid').innerHTML =
+        tile('All', 'ALL', '#374151', clientProducts.length, '<span class="font-head text-xl sm:text-2xl">ALL</span>', 0) +
+        brands.map((b, i) => tile(b.name, b.name, b.color, b.count, brandMark(b, 'lg'), i + 1)).join('');
     }
 
     function renderBrandSkeleton() {
@@ -758,12 +760,13 @@
         (p.Brand || '').toLowerCase().includes(q) ||
         (p.Description || '').toLowerCase().includes(q)
       );
-      if (currentBrand) filtered = filtered.filter(p => p.Brand === currentBrand);
+      if (currentBrand && currentBrand !== 'All') filtered = filtered.filter(p => p.Brand === currentBrand);
 
-      const b = currentBrand ? (brandList().find(x => x.name === currentBrand) || { name: currentBrand, color: brandColor(currentBrand), logo: '' }) : null;
+      const b = currentBrand && currentBrand !== 'All' ? (brandList().find(x => x.name === currentBrand) || { name: currentBrand, color: brandColor(currentBrand), logo: '' }) : null;
       document.getElementById('listBrandLogo').innerHTML = b ? brandMark(b, 'sm') : '';
-      let title = currentBrand || 'สินค้าทั้งหมด';
-      if (q) title = `ค้นหา “${q}”` + (currentBrand ? ' ใน ' + currentBrand : '');
+      const inBrand = currentBrand && currentBrand !== 'All';
+      let title = inBrand ? currentBrand : 'สินค้าทั้งหมด';
+      if (q) title = `ค้นหา “${q}”` + (inBrand ? ' ใน ' + currentBrand : '');
       document.getElementById('resultTitle').textContent = title;
       document.getElementById('resultCount').textContent = filtered.length + ' รายการ';
       renderClientProducts(filtered);
