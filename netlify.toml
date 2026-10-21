@@ -1,0 +1,15 @@
+[build]
+  publish = "."
+
+# เปิดหน้าแอดมินด้วย https://<ชื่อเว็บ>.netlify.app/admin
+[[redirects]]
+  from = "/admin"
+  to = "/index.html"
+  status = 200
+
+# ไม่เปิดให้ดาวน์โหลดสำเนาโค้ด Apps Script จากหน้าเว็บ
+[[redirects]]
+  from = "/apps-script/*"
+  to = "/index.html"
+  status = 404
+  force = true
