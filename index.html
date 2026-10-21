@@ -187,15 +187,6 @@
         </div>
         <div id="brandGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-5 max-w-5xl mx-auto"></div>
 
-        <!-- ติดต่อเจ้าหน้าที่ (ข้อมูลจากชีต Sales แก้ได้ในหน้าแอดมิน) -->
-        <div id="salesSection" class="hidden mt-12 sm:mt-16">
-          <div class="text-center mb-5">
-            <h2 class="font-head text-2xl sm:text-3xl font-semibold text-navy-900">ติดต่อเจ้าหน้าที่</h2>
-            <p class="text-gray-500 mt-1">เลือกแผนกที่ต้องการติดต่อ แล้วแตะที่รายชื่อเพื่อดูช่องทางติดต่อ</p>
-          </div>
-          <div id="deptTabsHome" class="grid grid-cols-3 gap-2 max-w-xl mx-auto mb-5"></div>
-          <div id="salesGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 max-w-5xl mx-auto"></div>
-        </div>
       </section>
 
       <!-- หน้ารายการสินค้า (ตามแบรนด์ หรือผลการค้นหา) -->
@@ -827,7 +818,6 @@
 
     function setDept(key) {
       activeDept = key;
-      renderSales();
       if (!document.getElementById('contactModal').classList.contains('hidden')) renderContactModal();
     }
 
@@ -842,47 +832,29 @@
       </div>`;
     }
 
-    // การ์ดเซลล์: variant 'card' = หน้าแรก, 'row' = ในรายชื่อ (แสดงแค่รูป ชื่อ ตำแหน่ง กดเพื่อดูรายละเอียด)
-    function saleCardHtml(sale, variant) {
+    // แถวรายชื่อในหน้าต่างติดต่อ (แสดงแค่รูป ชื่อ ตำแหน่ง กดเพื่อดูรายละเอียด)
+    function saleCardHtml(sale) {
       const id = esc(JSON.stringify(String(sale.ID)));
-      if (variant === 'row') {
-        return `<button onclick="openSaleDetail(${id})" class="w-full flex items-center gap-3 bg-gray-50 hover:bg-navy-50 border border-gray-100 rounded-xl p-3 text-left transition">
-          ${salePhoto(sale, 'w-12 h-12')}
-          <div class="min-w-0 flex-1">
-            <p class="font-head font-semibold text-navy-900 truncate">${esc(sale.Name)}</p>
-            ${sale.Position ? `<p class="text-xs text-gray-500 truncate">${esc(sale.Position)}</p>` : ''}
-          </div>
-          <i class="fas fa-chevron-right text-gray-300"></i>
-        </button>`;
-      }
-      return `<button onclick="openSaleDetail(${id})" class="fade-in bg-white rounded-2xl shadow-card hover:shadow-lift hover:-translate-y-0.5 transition p-4 sm:p-5 flex flex-col items-center text-center">
-        ${salePhoto(sale, 'w-20 h-20 sm:w-24 sm:h-24 text-3xl ring-4 ring-sun-100')}
-        <p class="font-head font-semibold text-navy-900 mt-3 leading-snug">${esc(sale.Name)}</p>
-        ${sale.Position ? `<p class="text-xs sm:text-sm text-sun-600 font-medium mt-0.5">${esc(sale.Position)}</p>` : ''}
-        <span class="text-xs text-gray-400 mt-2">ดูรายละเอียด <i class="fas fa-chevron-right text-[10px]"></i></span>
+      return `<button onclick="openSaleDetail(${id})" class="w-full flex items-center gap-3 bg-gray-50 hover:bg-navy-50 border border-gray-100 rounded-xl p-3 text-left transition">
+        ${salePhoto(sale, 'w-12 h-12')}
+        <div class="min-w-0 flex-1">
+          <p class="font-head font-semibold text-navy-900 truncate">${esc(sale.Name)}</p>
+          ${sale.Position ? `<p class="text-xs text-gray-500 truncate">${esc(sale.Position)}</p>` : ''}
+        </div>
+        <i class="fas fa-chevron-right text-gray-300"></i>
       </button>`;
-    }
-
-    function renderSales() {
-      document.getElementById('salesSection').classList.remove('hidden');
-      document.getElementById('deptTabsHome').innerHTML = deptTabsHtml();
-      const list = salesList.filter(sl => saleDept(sl) === activeDept);
-      document.getElementById('salesGrid').innerHTML = list.length
-        ? list.map(sl => saleCardHtml(sl, 'card')).join('')
-        : deptEmptyHtml();
     }
 
     function renderContactModal() {
       document.getElementById('deptTabsModal').innerHTML = deptTabsHtml();
       const list = salesList.filter(sl => saleDept(sl) === activeDept);
       document.getElementById('contactModalList').innerHTML = list.length
-        ? list.map(sl => saleCardHtml(sl, 'row')).join('')
+        ? list.map(sl => saleCardHtml(sl)).join('')
         : deptEmptyHtml();
     }
 
     function openContactModal(dept) {
       if (dept) activeDept = dept;
-      renderSales();
       renderContactModal();
       document.getElementById('contactModal').classList.remove('hidden');
       document.body.style.overflow = 'hidden';
@@ -903,7 +875,7 @@
           <span class="inline-flex items-center gap-1.5 mt-2 bg-navy-50 text-navy-700 text-xs font-medium px-3 py-1 rounded-full"><i class="${dept.icon}"></i> ${esc(dept.key)}</span>
           ${sale.Details ? `<p class="text-sm text-gray-600 mt-4 whitespace-pre-line text-left w-full bg-gray-50 rounded-xl p-3">${esc(sale.Details)}</p>` : ''}
           ${productName ? `<p class="text-xs text-gray-500 mt-4">ข้อความ LINE จะแนบชื่อสินค้า: ${esc(productName)}</p>` : ''}
-          <div class="grid grid-cols-2 gap-2 mt-4 w-full [&>a]:justify-center [&>a:only-child]:col-span-2">${saleButtons(sale, productName, 'md')}</div>
+          <div class="grid grid-cols-2 gap-2 mt-4 w-full [&>a]:justify-center [&>a:last-child:nth-child(odd)]:col-span-2">${saleButtons(sale, productName, 'md')}</div>
         </div>`;
       document.getElementById('saleDetailModal').classList.remove('hidden');
       document.body.style.overflow = 'hidden';
@@ -1099,7 +1071,6 @@
         if (!res.success) throw new Error(res.message);
         clientProducts = sortProducts(res.data.map(normalizeLinks));
         salesList = (res.sales || []).map(normalizeLinks);
-        renderSales();
         renderContacts();
         applyRoute();
         if (!clientProducts.length) showDiagnosis();
