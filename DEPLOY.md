@@ -102,6 +102,7 @@ https://script.google.com/macros/s/AKfycbybFFp-zjQAe7nMhKRfZazwIfctYOi9AocXldoNc
 | หน้าเว็บขึ้น "โหลดข้อมูลไม่สำเร็จ" | ตรวจขั้น A5 ว่าเลือก **New version** และ **Anyone** แล้ว และลองลิงก์ทดสอบในขั้น A6 |
 | ล็อกอินแอดมินแล้วขึ้น "ยังไม่ได้ตั้งรหัสผ่านแอดมิน" | ทำขั้น A3 แล้วทำ A5 ซ้ำ |
 | ล็อกอินแล้วขึ้น "Username หรือ Password ไม่ถูกต้อง" | ตรวจตัวพิมพ์เล็กใหญ่ใน Script Properties |
+| หน้าเว็บขึ้น "0 รายการ" | เปิด `.../exec?action=info` ดูว่า `published` เป็น 0 หรือไม่ ระบบอ่านหัวคอลัมน์ภาษาไทยได้ (เช่น สถานะ (Status)) แต่ค่าในคอลัมน์สถานะต้องเป็นคำว่า Publish |
 | รูปสินค้าไม่ขึ้น | ไฟล์ใน Drive ต้องแชร์เป็น *Anyone with the link* (ไฟล์ที่อัปโหลดผ่านหน้าแอดมินตั้งให้อัตโนมัติ) |
 | เข้า `/admin` แล้วขึ้น Page not found | ตรวจว่าไฟล์ `netlify.toml` อยู่ใน repo (มีอยู่แล้ว) แล้วกด **Deploys > Trigger deploy** |
 

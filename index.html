@@ -350,6 +350,11 @@
                 <label class="block text-sm font-medium text-gray-600">วิดีโอ (Link Youtube/Drive)</label>
                 <input type="text" id="formVideoURL" class="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl" placeholder="https://...">
               </div>
+              <div class="col-span-2 sm:col-span-1">
+                <label class="block text-sm font-medium text-gray-600">ไฟล์อื่นๆ (Other File)</label>
+                <input type="text" id="formOtherURL" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-xs text-gray-500 mb-1.5" placeholder="URL ไฟล์อื่นๆ (ถ้ามี)">
+                <input type="file" id="fileOther" class="w-full text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-navy-50 file:text-navy-700">
+              </div>
             </div>
           </form>
           <div class="flex justify-end gap-3 px-6 py-4 border-t bg-gray-50 safe-bottom">
@@ -432,8 +437,21 @@
     function imgUrl(u) {
       u = safeUrl(u);
       if (!u) return NO_IMAGE;
-      const m = u.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:export=\w+&)?id=)([\w-]+)/);
-      return m ? 'https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w1000' : u;
+      const id = driveId(u);
+      return id && !/lh3\.googleusercontent\.com/.test(u) ? 'https://drive.google.com/thumbnail?id=' + id + '&sz=w1000' : u;
+    }
+
+    function driveId(u) {
+      const m = String(u || '').match(/(?:drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:export=\w+&)?id=|thumbnail\?id=)|lh3\.googleusercontent\.com\/d\/)([\w-]+)/);
+      return m ? m[1] : '';
+    }
+
+    // ลิงก์เอกสาร (PDF ฯลฯ) ให้เปิดเป็นหน้าดูไฟล์ของ Google Drive
+    function docUrl(u) {
+      u = safeUrl(u);
+      if (!u) return '';
+      const id = driveId(u);
+      return id ? 'https://drive.google.com/file/d/' + id + '/view' : u;
     }
 
     function brandColor(name) {
@@ -566,8 +584,9 @@
       const tags = splitTags(item.Tags);
       if (tags.length) lines.push('', tags.map(t => '#' + t.replace(/\s+/g, '')).join(' '));
       lines.push('');
-      if (safeUrl(item.Datasheet)) lines.push('📄 Datasheet: ' + item.Datasheet);
-      if (safeUrl(item.Manual)) lines.push('📘 Manual: ' + item.Manual);
+      if (docUrl(item.Datasheet)) lines.push('📄 Datasheet: ' + docUrl(item.Datasheet));
+      if (docUrl(item.Manual)) lines.push('📘 Manual: ' + docUrl(item.Manual));
+      if (docUrl(item.OtherFile)) lines.push('📎 ไฟล์อื่นๆ: ' + docUrl(item.OtherFile));
       if (safeUrl(item.VideoLink)) lines.push('🎬 วิดีโอ: ' + item.VideoLink);
       lines.push('🔗 ดูสินค้า: ' + productLink(item));
       return lines.join('\n').replace(/\n{3,}/g, '\n\n');
@@ -701,7 +720,7 @@
       grid.innerHTML = data.map((item, i) => {
         const color = brandColor(item.Brand);
         const tags = splitTags(item.Tags).slice(0, 3);
-        const hasDoc = safeUrl(item.Datasheet) || safeUrl(item.Manual);
+        const hasDoc = docUrl(item.Datasheet) || docUrl(item.Manual) || docUrl(item.OtherFile);
         return `
         <article class="card fade-in bg-white rounded-2xl overflow-hidden shadow-card cursor-pointer flex flex-col" style="animation-delay:${Math.min(i, 12) * 30}ms" onclick="openModal(${i})">
           <div class="relative aspect-[4/3] bg-navy-50 overflow-hidden">
@@ -730,7 +749,7 @@
 
     function openProduct(item, fromHistory) {
       currentProduct = item;
-      const video = safeUrl(item.VideoLink), ds = safeUrl(item.Datasheet), man = safeUrl(item.Manual);
+      const video = safeUrl(item.VideoLink), ds = docUrl(item.Datasheet), man = docUrl(item.Manual), other = docUrl(item.OtherFile);
       const d = parseDescription(item.Description);
       const color = brandColor(item.Brand);
       const contact = contactButtonsHtml(item.ProductName);
@@ -766,8 +785,9 @@
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 ${ds ? docBtn(ds, 'fas fa-file-pdf', 'text-red-500 bg-red-50', 'Datasheet', 'ดาวน์โหลด PDF') : ''}
                 ${man ? docBtn(man, 'fas fa-book', 'text-navy-600 bg-navy-50', 'User Manual', 'คู่มือการใช้งาน') : ''}
+                ${other ? docBtn(other, 'fas fa-paperclip', 'text-sun-600 bg-sun-50', 'ไฟล์อื่นๆ', 'เอกสารเพิ่มเติม') : ''}
                 ${video ? docBtn(video, 'fab fa-youtube', 'text-red-600 bg-red-50', 'วิดีโอแนะนำ', 'ดูวิดีโอ') : ''}
-                ${!ds && !man && !video ? '<p class="text-sm text-gray-400">ยังไม่มีเอกสารแนบ</p>' : ''}
+                ${!ds && !man && !other && !video ? '<p class="text-sm text-gray-400">ยังไม่มีเอกสารแนบ</p>' : ''}
               </div>
             </div>
 
@@ -933,6 +953,7 @@
       document.getElementById('formDatasheetURL').value = item.Datasheet || '';
       document.getElementById('formManualURL').value = item.Manual || '';
       document.getElementById('formVideoURL').value = item.VideoLink || '';
+      document.getElementById('formOtherURL').value = item.OtherFile || '';
       document.getElementById('formStatus').value = item.Status || 'Draft';
       document.getElementById('formTitle').innerText = 'แก้ไขสินค้า';
       openAdminForm();
@@ -981,13 +1002,15 @@
           Datasheet: document.getElementById('formDatasheetURL').value,
           Manual: document.getElementById('formManualURL').value,
           VideoLink: document.getElementById('formVideoURL').value,
+          OtherFile: document.getElementById('formOtherURL').value,
           Status: document.getElementById('formStatus').value
         };
 
         const filesToUpload = [
           { id: 'fileCover', key: 'CoverImg', label: 'รูปหน้าปก' },
           { id: 'fileDatasheet', key: 'Datasheet', label: 'Datasheet' },
-          { id: 'fileManual', key: 'Manual', label: 'Manual' }
+          { id: 'fileManual', key: 'Manual', label: 'Manual' },
+          { id: 'fileOther', key: 'OtherFile', label: 'ไฟล์อื่นๆ' }
         ];
 
         for (const f of filesToUpload) {

@@ -125,17 +125,51 @@ function isValidToken(token) {
 // ==========================================
 // 4. ข้อมูลสินค้า
 // ==========================================
-function readProducts() {
+// หัวคอลัมน์ใน Sheet เป็นภาษาไทย/อังกฤษได้ ระบบจะจับคู่กับชื่อที่หน้าเว็บใช้ให้อัตโนมัติ
+// เช่น "สถานะ (Status)" -> Status, "รูปภาพสินค้า (Image URL)" -> CoverImg
+const FIELD_RULES = [
+  ['ID',          h => h === 'id'],
+  ['ProductName', h => h.includes('product name') || h.includes('productname') || h.includes('ชื่อสินค้า')],
+  ['Brand',       h => h.includes('brand') || h.includes('แบรนด์')],
+  ['Description', h => h.includes('detail') || h.includes('description') || h.includes('รายละเอียด')],
+  ['Tags',        h => h.includes('tag')],
+  ['CoverImg',    h => h.includes('image') || h.includes('cover') || h.includes('รูป')],
+  ['Datasheet',   h => h.includes('datasheet')],
+  ['Manual',      h => h.includes('manual') || h.includes('คู่มือ')],
+  ['VideoLink',   h => h.includes('video') || h.includes('วิดีโอ')],
+  ['Status',      h => h.includes('status') || h.includes('สถานะ')],
+  ['OtherFile',   h => h.includes('other') || h.includes('ไฟล์อื่น')],
+  ['Date',        h => h.includes('date') || h.includes('วันที่')]
+];
+
+function headerKeys(headers) {
+  return headers.map(raw => {
+    const h = String(raw).trim().toLowerCase();
+    const rule = FIELD_RULES.find(r => r[1](h));
+    return rule ? rule[0] : String(raw).trim();
+  });
+}
+
+function getProductSheet() {
   const sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_NAME);
-  const data = sheet.getDataRange().getDisplayValues();
-  const headers = data.shift().map(h => String(h).trim());
-  return data
-    .filter(row => row.some(cell => cell !== ''))
-    .map(row => {
-      let obj = {};
-      headers.forEach((header, index) => { obj[header] = row[index]; });
-      return obj;
-    });
+  if (!sheet) throw new Error('ไม่พบชีตชื่อ ' + SHEET_NAME);
+  return sheet;
+}
+
+// ถ้า Sheet ไม่มีคอลัมน์ ID จะใช้เลขแถวเป็นรหัสสินค้า เช่น "row-5"
+function readProducts() {
+  const data = getProductSheet().getDataRange().getDisplayValues();
+  const keys = headerKeys(data.shift());
+  const hasId = keys.indexOf('ID') >= 0;
+  const products = [];
+  data.forEach((row, i) => {
+    if (!row.some(cell => cell !== '')) return;
+    const obj = {};
+    keys.forEach((k, c) => { obj[k] = row[c]; });
+    if (!hasId || !obj.ID) obj.ID = 'row-' + (i + 2);
+    products.push(obj);
+  });
+  return products;
 }
 
 function getPublishedProducts() {
@@ -144,16 +178,14 @@ function getPublishedProducts() {
 
 // ใช้ตรวจปัญหา: ?action=info บอกชื่อคอลัมน์ จำนวนแถว และค่าในคอลัมน์ Status
 function getSheetInfo() {
-  const ss = SpreadsheetApp.openById(SHEET_ID);
-  const sheet = ss.getSheetByName(SHEET_NAME);
-  if (!sheet) {
-    return { error: 'ไม่พบชีตชื่อ ' + SHEET_NAME, sheets: ss.getSheets().map(s => s.getName()) };
-  }
+  const sheet = getProductSheet();
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getDisplayValues()[0];
   const rows = readProducts();
   const statuses = {};
   rows.forEach(p => { const k = String(p.Status); statuses[k] = (statuses[k] || 0) + 1; });
   return {
-    headers: sheet.getRange(1, 1, 1, sheet.getLastColumn()).getDisplayValues()[0],
+    headers: headers,
+    mappedTo: headerKeys(headers),
     totalRows: rows.length,
     published: getPublishedProducts().length,
     statuses: statuses
@@ -182,29 +214,40 @@ function saveProduct(productData) {
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
-    const sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_NAME);
+    const sheet = getProductSheet();
     const data = sheet.getDataRange().getValues();
-    const headers = data[0];
+    const keys = headerKeys(data[0]);
+    const idCol = keys.indexOf('ID');
 
+    // เพิ่มสินค้าใหม่
     if (!productData.ID) {
-      productData.ID = 'PROD-' + new Date().getTime();
-      const newRow = headers.map(h => productData[h] || '');
+      if (idCol >= 0) productData.ID = 'PROD-' + new Date().getTime();
+      if (keys.indexOf('Date') >= 0) productData.Date = new Date();
+      const newRow = keys.map(k => productData[k] || '');
       sheet.appendRow(newRow);
       return { success: true, message: 'เพิ่มสินค้าใหม่เรียบร้อย' };
     }
 
-    const idCol = headers.indexOf('ID') >= 0 ? headers.indexOf('ID') : 0;
-    for (let i = 1; i < data.length; i++) {
-      if (String(data[i][idCol]) === String(productData.ID)) {
-        // คงค่าเดิมของคอลัมน์ที่ฟอร์มไม่ได้ส่งมา
-        const updateRow = headers.map((h, c) =>
-          productData.hasOwnProperty(h) ? (productData[h] || '') : data[i][c]
-        );
-        sheet.getRange(i + 1, 1, 1, headers.length).setValues([updateRow]);
-        return { success: true, message: 'อัปเดตข้อมูลเรียบร้อย' };
+    // หาแถวที่จะแก้ไข
+    let rowIndex = -1;
+    const m = String(productData.ID).match(/^row-(\d+)$/);
+    if (m) {
+      rowIndex = Number(m[1]);
+      if (rowIndex < 2 || rowIndex > data.length) rowIndex = -1;
+    } else if (idCol >= 0) {
+      for (let i = 1; i < data.length; i++) {
+        if (String(data[i][idCol]) === String(productData.ID)) { rowIndex = i + 1; break; }
       }
     }
-    return { success: false, message: 'ไม่พบรหัสสินค้านี้' };
+    if (rowIndex === -1) return { success: false, message: 'ไม่พบรหัสสินค้านี้' };
+
+    // คงค่าเดิมของคอลัมน์ที่ฟอร์มไม่ได้ส่งมา (เช่น วันที่, ID)
+    const old = data[rowIndex - 1];
+    const updateRow = keys.map((k, c) =>
+      (k !== 'ID' && k !== 'Date' && productData.hasOwnProperty(k)) ? (productData[k] || '') : old[c]
+    );
+    sheet.getRange(rowIndex, 1, 1, keys.length).setValues([updateRow]);
+    return { success: true, message: 'อัปเดตข้อมูลเรียบร้อย' };
   } finally {
     lock.releaseLock();
   }
