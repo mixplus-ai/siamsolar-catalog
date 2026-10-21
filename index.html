@@ -945,11 +945,8 @@
       const img = src => src
         ? `<img src="${esc(src)}" loading="lazy" alt="" class="absolute inset-0 w-full h-full object-contain p-2" onerror="this.src=NO_IMAGE">`
         : `<img src="${NO_IMAGE}" alt="" class="absolute inset-0 w-full h-full object-cover">`;
-      // ปุ่ม ALL ใช้รูปสินค้าจาก 4 แบรนด์แรก
-      const allMedia = `<span class="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-px bg-gray-100">${brands.slice(0, 4).map(b => `<span class="relative bg-white">${img(b.cover)}</span>`).join('')}</span>`;
       document.getElementById('brandGrid').innerHTML =
-        tile('All', '#374151', clientProducts.length, '<span class="font-head text-lg sm:text-xl">ALL</span>', allMedia, 0) +
-        brands.map((b, i) => tile(b.name, b.color, b.count, brandMark(b, 'md'), img(b.cover), i + 1)).join('');
+        brands.map((b, i) => tile(b.name, b.color, b.count, brandMark(b, 'md'), img(b.cover), i)).join('');
     }
 
     function renderBrandSkeleton() {
