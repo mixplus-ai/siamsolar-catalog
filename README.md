@@ -2,6 +2,8 @@
 
 หลักการ: หน้าเว็บ (index.html) อยู่บน Netlify ส่วน Google Sheet และ Google Drive ยังเป็นที่เก็บข้อมูลเหมือนเดิม โดย Apps Script ทำหน้าที่เป็น API ให้หน้าเว็บเรียกผ่าน `fetch` แทน `google.script.run`
 
+> 📘 คู่มือติดตั้งแบบทีละคลิก ดูที่ [DEPLOY.md](DEPLOY.md)
+
 ไฟล์ในชุดนี้
 
 | ไฟล์ | ใช้ที่ไหน |
