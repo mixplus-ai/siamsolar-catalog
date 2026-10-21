@@ -735,26 +735,14 @@
       let footer = items.length ? contactButtonsHtml('', 'sm') : '';
       if (salesList.length) footer = `<button onclick="openContactModal()" class="bg-line hover:bg-line-dark text-white px-3 py-2 text-sm rounded-xl font-head font-medium inline-flex items-center gap-2"><i class="fas fa-headset"></i> รายชื่อเซลล์ (${salesList.length})</button>` + footer;
       document.getElementById('footerContact').innerHTML = footer || '<span class="text-sm">-</span>';
-      // ปุ่ม "ติดต่อฝ่ายขาย" มุมขวาบน
-      const headerBtn = 'inline-flex items-center gap-2 bg-line hover:bg-line-dark text-white rounded-xl px-3 sm:px-4 py-2 text-sm font-head font-medium shadow-lg';
-      if (salesList.length) {
-        document.getElementById('headerContact').innerHTML = `<button onclick="openContactModal()" class="${headerBtn}"><i class="fas fa-headset"></i> ติดต่อฝ่ายขาย</button>`;
-      } else if (CONFIG.LINE_ID || CONFIG.PHONE) {
-        const href = CONFIG.LINE_ID ? lineChatLink('สนใจสินค้าโซลาร์') : 'tel:' + CONFIG.PHONE.replace(/[^\d+]/g, '');
-        document.getElementById('headerContact').innerHTML = `<a href="${esc(href)}" target="_blank" rel="noopener" class="${headerBtn}"><i class="fas fa-headset"></i> ติดต่อฝ่ายขาย</a>`;
-      }
+      // ปุ่ม "ติดต่อฝ่ายขาย" แสดงเสมอ (มุมขวาบน, หน้ารายการสินค้า, ปุ่มลอย) กดแล้วเปิดรายชื่อเซลล์
+      document.getElementById('headerContact').innerHTML =
+        `<button onclick="openContactModal()" class="inline-flex items-center gap-2 bg-line hover:bg-line-dark text-white rounded-xl px-3 sm:px-4 py-2 text-sm font-head font-medium shadow-lg"><i class="fas fa-headset"></i> ติดต่อฝ่ายขาย</button>`;
       const lc = document.getElementById('listContactBtn');
-      lc.classList.toggle('hidden', !salesList.length); lc.classList.toggle('inline-flex', !!salesList.length);
+      lc.classList.remove('hidden'); lc.classList.add('inline-flex');
       const fab = document.getElementById('fabLine');
-      if (salesList.length) {
-        fab.href = '#';
-        fab.onclick = e => { e.preventDefault(); openContactModal(); };
-      } else if (CONFIG.LINE_ID) {
-        fab.href = lineChatLink('สนใจสินค้าโซลาร์ ขอคำแนะนำหน่อยครับ');
-        fab.onclick = null;
-      } else {
-        return;
-      }
+      fab.href = '#';
+      fab.onclick = e => { e.preventDefault(); openContactModal(); };
       fab.classList.remove('hidden'); fab.classList.add('inline-flex');
     }
 
@@ -816,15 +804,24 @@
     }
 
     function renderSales() {
-      const section = document.getElementById('salesSection');
-      section.classList.toggle('hidden', !salesList.length);
-      document.getElementById('salesGrid').innerHTML = salesList.map(sl => saleCardHtml(sl, '', 'card')).join('');
+      document.getElementById('salesSection').classList.remove('hidden');
+      document.getElementById('salesGrid').innerHTML = salesList.length
+        ? salesList.map(sl => saleCardHtml(sl, '', 'card')).join('')
+        : `<div class="col-span-full text-center"><button onclick="openContactModal()" class="inline-flex items-center gap-2 bg-line hover:bg-line-dark text-white px-8 py-4 rounded-2xl font-head font-semibold text-lg shadow-lift"><i class="fas fa-headset"></i> ติดต่อฝ่ายขาย</button></div>`;
     }
 
     function openContactModal() {
       const productName = currentProduct ? currentProduct.ProductName : '';
-      document.getElementById('contactModalList').innerHTML = salesList.map(sl =>
+      let html = salesList.map(sl =>
         saleCardHtml(sl, productName, 'row').replace('bg-white/95', 'bg-gray-50 border border-gray-100')).join('');
+      const extra = contactButtonsHtml(productName);
+      if (extra) html += `<div class="flex flex-wrap gap-2 pt-1">${extra}</div>`;
+      if (!html) html = `<div class="text-center py-8 text-gray-500">
+          <div class="w-14 h-14 rounded-full bg-navy-50 text-navy-600 grid place-items-center mx-auto text-xl"><i class="fas fa-user-clock"></i></div>
+          <p class="font-head mt-3 text-gray-700">กำลังเตรียมข้อมูลฝ่ายขาย</p>
+          <p class="text-sm mt-1">กรุณาลองใหม่อีกครั้งภายหลัง</p>
+        </div>`;
+      document.getElementById('contactModalList').innerHTML = html;
       document.getElementById('contactModal').classList.remove('hidden');
       document.body.style.overflow = 'hidden';
     }
