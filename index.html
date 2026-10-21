@@ -115,7 +115,7 @@
       EMAIL: ''           // เช่น 'sales@siamsolar.co.th'
     };
 
-    // แบรนด์ (เพิ่ม/ลบได้ที่นี่ หน้าแรกและฟอร์มแอดมินจะเปลี่ยนตาม)
+    // แบรนด์ตั้งต้น ใช้จนกว่าจะบันทึกแบรนด์ในหน้าแอดมิน (แท็บ "แบรนด์" เก็บในชีต Brands)
     // logo: ใส่ลิงก์รูปโลโก้ (ลิงก์ Google Drive ได้) หรือไฟล์ในโฟลเดอร์ logos/ เช่น 'logos/kstar.png'
     //       ถ้าเว้นว่าง จะแสดงชื่อแบรนด์เป็นตัวอักษรสีประจำแบรนด์แทน
     const BRANDS = [
@@ -301,8 +301,22 @@
 
       <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
         <div class="flex gap-2 mb-5 bg-white rounded-2xl shadow-card p-1.5 w-full sm:w-auto sm:inline-flex">
-          <button id="tabBtnProducts" onclick="switchAdminTab('products')" class="flex-1 sm:flex-none px-5 py-2.5 rounded-xl font-head font-medium bg-navy-900 text-white"><i class="fas fa-solar-panel mr-1"></i> สินค้า</button>
-          <button id="tabBtnSales" onclick="switchAdminTab('sales')" class="flex-1 sm:flex-none px-5 py-2.5 rounded-xl font-head font-medium text-gray-600 hover:bg-gray-100"><i class="fas fa-user-tie mr-1"></i> ทีมเซลล์</button>
+          <button id="tabBtnProducts" onclick="switchAdminTab('products')" class="flex-1 sm:flex-none px-3 sm:px-5 py-2.5 rounded-xl font-head font-medium text-sm sm:text-base whitespace-nowrap bg-navy-900 text-white"><i class="fas fa-solar-panel mr-1"></i> สินค้า</button>
+          <button id="tabBtnBrands" onclick="switchAdminTab('brands')" class="flex-1 sm:flex-none px-3 sm:px-5 py-2.5 rounded-xl font-head font-medium text-sm sm:text-base whitespace-nowrap text-gray-600 hover:bg-gray-100"><i class="fas fa-tags mr-1"></i> แบรนด์</button>
+          <button id="tabBtnSales" onclick="switchAdminTab('sales')" class="flex-1 sm:flex-none px-3 sm:px-5 py-2.5 rounded-xl font-head font-medium text-sm sm:text-base whitespace-nowrap text-gray-600 hover:bg-gray-100"><i class="fas fa-user-tie mr-1"></i> ทีมเซลล์</button>
+        </div>
+
+        <!-- แท็บแบรนด์ -->
+        <div id="tabBrands" class="hidden">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+            <p class="text-sm text-gray-500">เพิ่ม แก้ไข หรือเลื่อนลำดับแบรนด์บนหน้าแรก กดลูกศรเพื่อย้ายตำแหน่ง แล้วกด <b>บันทึกแบรนด์</b> (เก็บไว้ในชีต <b>Brands</b>)</p>
+            <div class="flex gap-2 flex-shrink-0">
+              <button onclick="editBrand(-1)" class="flex-1 bg-white border border-gray-200 hover:bg-gray-50 text-navy-900 px-4 py-3 rounded-xl font-head font-medium whitespace-nowrap"><i class="fas fa-plus mr-1"></i> เพิ่มแบรนด์</button>
+              <button onclick="saveBrandList()" id="btnSaveBrands" class="flex-1 bg-sun-400 hover:bg-sun-500 text-navy-950 px-5 py-3 rounded-xl font-head font-semibold shadow-card whitespace-nowrap"><i class="fas fa-save mr-1"></i> บันทึกแบรนด์</button>
+            </div>
+          </div>
+          <p id="brandDirtyNote" class="hidden mb-3 text-sm bg-sun-50 text-sun-600 border border-sun-100 rounded-xl px-4 py-2.5"><i class="fas fa-circle-exclamation mr-1"></i> มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก</p>
+          <ol id="brandAdminList" class="space-y-2"></ol>
         </div>
 
         <!-- แท็บทีมเซลล์ -->
@@ -672,7 +686,7 @@
       document.getElementById('tagline').textContent = CONFIG.TAGLINE;
       document.getElementById('footerTag').textContent = CONFIG.TAGLINE;
       document.getElementById('year').textContent = new Date().getFullYear();
-      document.getElementById('formBrand').innerHTML = BRANDS.map(b => `<option value="${esc(b.name)}">${esc(b.name)}</option>`).join('');
+      fillBrandSelect();
       if (CONFIG.SHOP_NAME) document.title = CONFIG.SHOP_NAME + ' | Solar Equipment Catalog';
 
       if (APP_MODE === 'admin') {
@@ -968,7 +982,7 @@
       // รูปบนปุ่มแบรนด์ = รูปของสินค้าลำดับแรกที่มีรูป (เปลี่ยนได้ด้วยการจัดเรียงในหน้าแอดมิน)
       const cover = {};
       clientProducts.forEach(p => { if (p.Brand && !cover[p.Brand] && safeUrl(p.CoverImg)) cover[p.Brand] = imgUrl(p.CoverImg); });
-      return BRANDS.concat(extra).filter(b => counts[b.name]).map(b => Object.assign({ count: counts[b.name], cover: cover[b.name] || '' }, b));
+      return BRANDS.concat(extra).filter(b => counts[b.name] && !b.hidden).map(b => Object.assign({ count: counts[b.name], cover: cover[b.name] || '' }, b));
     }
 
     // เรียงตามคอลัมน์ลำดับ (Order) ที่ตั้งในหน้าแอดมิน สินค้าที่ไม่มีลำดับอยู่ท้าย ตามลำดับแถวใน Sheet
@@ -1071,6 +1085,7 @@
         if (!res.success) throw new Error(res.message);
         clientProducts = sortProducts(res.data.map(normalizeLinks));
         salesList = (res.sales || []).map(normalizeLinks);
+        applyBrandConfig(res.brands);
         renderContacts();
         applyRoute();
         if (!clientProducts.length) showDiagnosis();
@@ -1300,14 +1315,174 @@
     }
 
     function switchAdminTab(tab) {
-      const sales = tab === 'sales';
-      document.getElementById('tabSales').classList.toggle('hidden', !sales);
-      document.getElementById('tabProducts').classList.toggle('hidden', sales);
-      [['tabBtnProducts', !sales], ['tabBtnSales', sales]].forEach(([id, on]) => {
+      document.getElementById('tabSales').classList.toggle('hidden', tab !== 'sales');
+      document.getElementById('tabBrands').classList.toggle('hidden', tab !== 'brands');
+      document.getElementById('tabProducts').classList.toggle('hidden', tab !== 'products');
+      if (tab === 'brands') renderBrandAdmin();
+      [['tabBtnProducts', tab === 'products'], ['tabBtnBrands', tab === 'brands'], ['tabBtnSales', tab === 'sales']].forEach(([id, on]) => {
         const b = document.getElementById(id);
         b.classList.toggle('bg-navy-900', on); b.classList.toggle('text-white', on);
         b.classList.toggle('text-gray-600', !on); b.classList.toggle('hover:bg-gray-100', !on);
       });
+    }
+
+    // ---------- แบรนด์ ----------
+    // ใช้ค่าจากชีต Brands (ถ้ามี) แทนรายการตั้งต้น
+    function applyBrandConfig(list) {
+      if (!Array.isArray(list) || !list.length) return;
+      const logo = v => { v = String(v || '').trim(); return /^[\w-]{25,}$/.test(v) ? 'https://drive.google.com/file/d/' + v + '/view' : v; };
+      BRANDS.splice(0, BRANDS.length, ...list.map(b => ({
+        name: String(b.Name).trim(),
+        color: /^#[0-9a-f]{3,8}$/i.test(String(b.Color || '').trim()) ? String(b.Color).trim() : '#1d3f8f',
+        logo: logo(b.Logo),
+        hidden: String(b.Status || '').toLowerCase() === 'hide'
+      })));
+      fillBrandSelect();
+    }
+
+    function fillBrandSelect() {
+      const sel = document.getElementById('formBrand');
+      const prev = sel.value;
+      const names = BRANDS.map(b => b.name);
+      adminProducts.forEach(p => { if (p.Brand && !names.includes(p.Brand)) names.push(p.Brand); });
+      sel.innerHTML = names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+      if (prev && names.includes(prev)) sel.value = prev;
+    }
+
+    let adminBrands = [];
+    let brandsDirty = false;
+
+    // รายการในแท็บแบรนด์ = แบรนด์ที่ตั้งไว้ + แบรนด์ที่มีในสินค้าแต่ยังไม่ได้ตั้ง
+    function initBrandAdmin() {
+      if (brandsDirty) return;
+      adminBrands = BRANDS.map(b => ({ Name: b.name, OldName: b.name, Color: b.color, Logo: b.logo, Status: b.hidden ? 'Hide' : 'Show' }));
+      adminProducts.forEach(p => {
+        if (p.Brand && !adminBrands.some(b => b.Name === p.Brand)) adminBrands.push({ Name: p.Brand, OldName: p.Brand, Color: '#1d3f8f', Logo: '', Status: 'Show' });
+      });
+      renderBrandAdmin();
+    }
+
+    function setBrandsDirty(on) {
+      brandsDirty = on;
+      document.getElementById('brandDirtyNote').classList.toggle('hidden', !on);
+    }
+
+    function renderBrandAdmin() {
+      const ol = document.getElementById('brandAdminList');
+      if (!adminBrands.length) {
+        ol.innerHTML = `<li class="bg-white rounded-2xl shadow-card px-4 py-12 text-center text-gray-400"><i class="fas fa-tags text-3xl mb-2 block"></i>ยังไม่มีแบรนด์ กด "เพิ่มแบรนด์" เพื่อเริ่ม</li>`;
+        return;
+      }
+      const btn = 'w-8 h-8 sm:w-9 sm:h-9 flex-shrink-0 rounded-lg grid place-items-center disabled:opacity-30 disabled:cursor-not-allowed';
+      ol.innerHTML = adminBrands.map((b, i) => {
+        const count = adminProducts.filter(p => p.Brand === (b.OldName || b.Name)).length;
+        const src = logoSrc(b.Logo);
+        const hidden = b.Status === 'Hide';
+        return `<li class="flex items-center gap-2 sm:gap-3 bg-white rounded-xl shadow-card p-2.5 sm:p-3 ${hidden ? 'opacity-60' : ''}">
+          <span class="hidden sm:block w-6 text-center text-sm text-gray-400 font-head">${i + 1}</span>
+          <span class="w-10 h-10 sm:w-12 sm:h-12 rounded-lg border border-gray-100 bg-white grid place-items-center overflow-hidden flex-shrink-0" style="border-bottom:3px solid ${esc(b.Color)}">
+            ${src ? `<img src="${esc(src)}" alt="" class="max-w-full max-h-full object-contain p-1">` : `<span class="font-head font-bold text-lg" style="color:${esc(b.Color)}">${esc(b.Name.slice(0, 1))}</span>`}
+          </span>
+          <div class="min-w-0 flex-1">
+            <p class="font-head font-semibold truncate" style="color:${esc(b.Color)}">${esc(b.Name)}</p>
+            <p class="text-xs text-gray-500">${count} สินค้า${hidden ? ' · <span class="text-gray-600">ซ่อนอยู่</span>' : ''}${b.OldName && b.OldName !== b.Name ? ' · เดิมชื่อ ' + esc(b.OldName) : ''}</p>
+          </div>
+          <button onclick="moveBrand(${i}, -1)" ${i === 0 ? 'disabled' : ''} class="${btn} bg-gray-100 hover:bg-gray-200 text-gray-600" title="เลื่อนขึ้น"><i class="fas fa-arrow-up"></i></button>
+          <button onclick="moveBrand(${i}, 1)" ${i === adminBrands.length - 1 ? 'disabled' : ''} class="${btn} bg-gray-100 hover:bg-gray-200 text-gray-600" title="เลื่อนลง"><i class="fas fa-arrow-down"></i></button>
+          <button onclick="editBrand(${i})" class="${btn} bg-sun-50 text-sun-600 hover:bg-sun-400 hover:text-navy-950" title="แก้ไข"><i class="fas fa-pen"></i></button>
+          <button onclick="removeBrand(${i})" class="${btn} bg-red-50 text-red-500 hover:bg-red-500 hover:text-white" title="ลบ"><i class="fas fa-trash"></i></button>
+        </li>`;
+      }).join('');
+    }
+
+    function moveBrand(i, dir) {
+      const j = i + dir;
+      if (j < 0 || j >= adminBrands.length) return;
+      [adminBrands[i], adminBrands[j]] = [adminBrands[j], adminBrands[i]];
+      setBrandsDirty(true);
+      renderBrandAdmin();
+    }
+
+    async function removeBrand(i) {
+      const b = adminBrands[i];
+      const count = adminProducts.filter(p => p.Brand === (b.OldName || b.Name)).length;
+      const ok = await Swal.fire({
+        icon: 'warning', title: 'ลบแบรนด์ ' + b.Name + '?',
+        html: count ? `แบรนด์นี้มีสินค้า ${count} รายการ สินค้าจะไม่ถูกลบ และแบรนด์จะยังขึ้นท้ายสุดในหน้าแรก<br>ถ้าไม่ต้องการให้แสดง แนะนำให้กด <b>แก้ไข</b> แล้วเลือก <b>ซ่อน</b> แทน` : 'กด "บันทึกแบรนด์" หลังลบเพื่อยืนยัน',
+        showCancelButton: true, confirmButtonText: 'ลบ', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#ef4444'
+      });
+      if (!ok.isConfirmed) return;
+      adminBrands.splice(i, 1);
+      setBrandsDirty(true);
+      renderBrandAdmin();
+    }
+
+    async function editBrand(i) {
+      const isNew = i < 0;
+      const b = isNew ? { Name: '', OldName: '', Color: '#1d3f8f', Logo: '', Status: 'Show' } : adminBrands[i];
+      const field = 'w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-base';
+      const res = await Swal.fire({
+        title: isNew ? 'เพิ่มแบรนด์' : 'แก้ไขแบรนด์',
+        html: `<div class="text-left space-y-3 text-sm">
+          <label class="block"><span class="font-medium text-gray-600">ชื่อแบรนด์ <span class="text-red-500">*</span></span>
+            <input id="bName" class="${field}" value="${esc(b.Name)}" placeholder="เช่น Huawei"></label>
+          ${!isNew && b.OldName ? '<p class="text-xs text-gray-500 -mt-1">ถ้าเปลี่ยนชื่อ ระบบจะเปลี่ยนชื่อแบรนด์ในสินค้าทุกตัวให้ตอนบันทึก</p>' : ''}
+          <label class="block"><span class="font-medium text-gray-600">สีประจำแบรนด์</span>
+            <span class="flex gap-2 mt-1"><input id="bColorPick" type="color" value="${esc(b.Color)}" class="h-11 w-14 rounded-lg border border-gray-200 p-1 bg-white">
+            <input id="bColor" class="${field} !mt-0" value="${esc(b.Color)}" placeholder="#1d3f8f"></span></label>
+          <label class="block"><span class="font-medium text-gray-600">โลโก้ (ไม่ใส่ก็ได้ จะแสดงชื่อแบรนด์เป็นตัวอักษรสีประจำแบรนด์)</span>
+            <input id="bLogoFile" type="file" accept="image/*" class="w-full text-sm mt-1 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-navy-50 file:text-navy-700">
+            <input id="bLogo" class="${field} text-sm" value="${esc(b.Logo)}" placeholder="หรือวางลิงก์รูปโลโก้ (Google Drive ได้)"></label>
+          <label class="block"><span class="font-medium text-gray-600">สถานะ</span>
+            <select id="bStatus" class="${field} bg-white"><option value="Show">แสดงบนหน้าแรก</option><option value="Hide" ${b.Status === 'Hide' ? 'selected' : ''}>ซ่อน</option></select></label>
+        </div>`,
+        showCancelButton: true, confirmButtonText: 'ตกลง', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#0b1f4d',
+        didOpen: () => {
+          const pick = document.getElementById('bColorPick'), txt = document.getElementById('bColor');
+          pick.addEventListener('input', () => txt.value = pick.value);
+          txt.addEventListener('input', () => { if (/^#[0-9a-f]{6}$/i.test(txt.value.trim())) pick.value = txt.value.trim(); });
+        },
+        preConfirm: async () => {
+          const name = document.getElementById('bName').value.trim();
+          const color = document.getElementById('bColor').value.trim();
+          if (!name) return Swal.showValidationMessage('กรุณากรอกชื่อแบรนด์');
+          if (adminBrands.some((x, k) => k !== i && x.Name.toLowerCase() === name.toLowerCase())) return Swal.showValidationMessage('มีแบรนด์ชื่อนี้แล้ว');
+          if (!/^#[0-9a-f]{3,8}$/i.test(color)) return Swal.showValidationMessage('สีต้องเป็นรหัสแบบ #1d3f8f');
+          let logo = document.getElementById('bLogo').value.trim();
+          const file = await getFileBase64('bLogoFile');
+          if (file) {
+            try {
+              const up = await adminPost('upload', file);
+              if (!up.success) throw new Error(up.message);
+              logo = up.data;
+            } catch (err) {
+              return Swal.showValidationMessage('อัปโหลดโลโก้ไม่สำเร็จ: ' + err.message + ' (วางลิงก์รูปแทนได้)');
+            }
+          }
+          return { Name: name, OldName: b.OldName, Color: color, Logo: logo, Status: document.getElementById('bStatus').value };
+        }
+      });
+      if (!res.isConfirmed || !res.value) return;
+      if (isNew) adminBrands.push(res.value); else adminBrands[i] = res.value;
+      setBrandsDirty(true);
+      renderBrandAdmin();
+    }
+
+    async function saveBrandList() {
+      const btn = document.getElementById('btnSaveBrands');
+      btn.disabled = true;
+      Swal.fire({ title: 'กำลังบันทึกแบรนด์...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      try {
+        const res = await adminPost('saveBrands', { brands: adminBrands });
+        if (!res.success) throw new Error(res.message);
+        setBrandsDirty(false);
+        Swal.fire({ icon: 'success', title: res.message, timer: 1600, showConfirmButton: false });
+        loadAdminData();
+      } catch (err) {
+        Swal.fire('ผิดพลาด', err.message + ' (ถ้าเพิ่งอัปเดตเว็บ ให้วาง Code.gs ตัวล่าสุดแล้ว Deploy เป็น New version)', 'error');
+      } finally {
+        btn.disabled = false;
+      }
     }
 
     // ---------- จัดเรียงลำดับสินค้า ----------
@@ -1524,6 +1699,8 @@
         const res = await adminPost('listAll');
         if (!res.success) throw new Error(res.message);
         adminProducts = sortProducts(res.data.map(normalizeLinks));
+        applyBrandConfig(res.brands);
+        initBrandAdmin();
         renderAdminTable();
       } catch (err) {
         console.error(err);

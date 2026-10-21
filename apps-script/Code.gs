@@ -5,6 +5,7 @@ const SHEET_ID = '1Zm0QtxOVdjRYSuXKIJ9FLO1JMO_BI673LBMtk8DBfTo';
 const FOLDER_ID = '1cvhCCc2S4W7nZCDMytgvNWhX03Zr3OT2';
 const SHEET_NAME = 'Products';
 const SALES_SHEET_NAME = 'Sales';
+const BRANDS_SHEET_NAME = 'Brands';
 const CONTACT_PREFIX = 'Siamsolar'; // ชื่อที่ขึ้นหน้าชื่อเซลล์ตอนบันทึกลงมือถือ เช่น "Siamsolar สมชาย" // ชีตรายชื่อเซลล์ (ระบบสร้างให้อัตโนมัติเมื่อบันทึกเซลล์คนแรก)
 
 // Username / Password แอดมิน: ตั้งที่ Project Settings > Script Properties
@@ -36,7 +37,7 @@ function doGet(e) {
   const action = (e && e.parameter && e.parameter.action) || '';
 
   if (action === 'products') {
-    return jsonOut({ success: true, data: getPublishedProducts(), sales: getVisibleSales() });
+    return jsonOut({ success: true, data: getPublishedProducts(), sales: getVisibleSales(), brands: readBrandsSafe() });
   }
   if (action === 'vcard') {
     return saleVCard(e.parameter.id, e.parameter.site);
@@ -79,7 +80,7 @@ function doPost(e) {
     }
 
     if (action === 'listAll') {
-      return jsonOut({ success: true, data: getAllProducts() });
+      return jsonOut({ success: true, data: getAllProducts(), brands: readBrandsSafe() });
     }
     if (action === 'upload') {
       return jsonOut({ success: true, data: uploadFileToDrive(body.base64, body.name, body.type) });
@@ -89,6 +90,9 @@ function doPost(e) {
     }
     if (action === 'saveOrder') {
       return jsonOut(saveProductOrder(body.orders || []));
+    }
+    if (action === 'saveBrands') {
+      return jsonOut(saveBrands(body.brands || []));
     }
     if (action === 'listSales') {
       return jsonOut({ success: true, data: readSales() });
@@ -307,6 +311,84 @@ function saveProductOrder(orders) {
     });
     range.setValues(values);
     return { success: true, message: 'บันทึกลำดับเรียบร้อย (' + changed + ' รายการ)' };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ==========================================
+// 4.1 แบรนด์ (ชีต Brands) ชื่อ สี โลโก้ ลำดับ ซ่อน/แสดง
+// ==========================================
+const BRAND_HEADERS = ['Name', 'Color', 'Logo', 'Order', 'Status'];
+
+// ยังไม่มีชีต Brands = คืนค่าว่าง แล้วหน้าเว็บจะใช้รายการแบรนด์ตั้งต้นใน index.html
+function readBrandsSafe() {
+  try {
+    const sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName(BRANDS_SHEET_NAME);
+    if (!sheet || sheet.getLastRow() < 2) return [];
+    const data = sheet.getDataRange().getDisplayValues();
+    const headers = data.shift().map(h => String(h).trim());
+    return data
+      .filter(row => row.some(cell => cell !== ''))
+      .map(row => {
+        const obj = {};
+        headers.forEach((h, c) => { obj[h] = row[c]; });
+        return obj;
+      })
+      .filter(b => b.Name)
+      .sort((a, b) => (Number(a.Order) || 999) - (Number(b.Order) || 999));
+  } catch (e) {
+    return [];
+  }
+}
+
+// บันทึกรายการแบรนด์ทั้งหมด (เพิ่ม แก้ไข ลบ เรียงลำดับ) ในครั้งเดียว
+// ถ้าเปลี่ยนชื่อแบรนด์ (OldName ไม่ตรงกับ Name) จะเปลี่ยนชื่อแบรนด์ในสินค้าทุกตัวให้ด้วย
+function saveBrands(brands) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const clean = brands
+      .map(b => ({
+        Name: String(b.Name || '').trim(),
+        OldName: String(b.OldName || '').trim(),
+        Color: /^#[0-9a-f]{3,8}$/i.test(String(b.Color || '').trim()) ? String(b.Color).trim() : '#1d3f8f',
+        Logo: String(b.Logo || '').trim(),
+        Status: String(b.Status || '').toLowerCase() === 'hide' ? 'Hide' : 'Show'
+      }))
+      .filter(b => b.Name);
+    const names = clean.map(b => b.Name.toLowerCase());
+    if (names.some((n, i) => names.indexOf(n) !== i)) {
+      return { success: false, message: 'มีชื่อแบรนด์ซ้ำกัน' };
+    }
+
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    let sheet = ss.getSheetByName(BRANDS_SHEET_NAME);
+    if (!sheet) sheet = ss.insertSheet(BRANDS_SHEET_NAME);
+    sheet.clearContents();
+    const rows = [BRAND_HEADERS].concat(clean.map((b, i) => [b.Name, b.Color, b.Logo, i + 1, b.Status]));
+    sheet.getRange(1, 1, rows.length, BRAND_HEADERS.length).setValues(rows);
+    sheet.getRange(1, 1, 1, BRAND_HEADERS.length).setFontWeight('bold');
+    sheet.setFrozenRows(1);
+
+    // เปลี่ยนชื่อแบรนด์ในชีตสินค้า
+    let renamed = 0;
+    const renames = clean.filter(b => b.OldName && b.OldName !== b.Name);
+    if (renames.length) {
+      const pSheet = getProductSheet();
+      const data = pSheet.getDataRange().getValues();
+      const brandCol = headerKeys(data[0]).indexOf('Brand');
+      if (brandCol >= 0 && data.length > 1) {
+        const range = pSheet.getRange(2, brandCol + 1, data.length - 1, 1);
+        const values = range.getValues();
+        values.forEach(v => {
+          const r = renames.find(b => String(v[0]).trim() === b.OldName);
+          if (r) { v[0] = r.Name; renamed++; }
+        });
+        range.setValues(values);
+      }
+    }
+    return { success: true, message: 'บันทึกแบรนด์เรียบร้อย' + (renamed ? ' (เปลี่ยนชื่อแบรนด์ในสินค้า ' + renamed + ' รายการ)' : '') };
   } finally {
     lock.releaseLock();
   }
