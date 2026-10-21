@@ -187,13 +187,14 @@
         </div>
         <div id="brandGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-5 max-w-5xl mx-auto"></div>
 
-        <!-- ติดต่อฝ่ายขาย (ข้อมูลจากชีต Sales แก้ได้ในหน้าแอดมิน) -->
+        <!-- ติดต่อเจ้าหน้าที่ (ข้อมูลจากชีต Sales แก้ได้ในหน้าแอดมิน) -->
         <div id="salesSection" class="hidden mt-12 sm:mt-16">
-          <div class="text-center mb-6">
-            <h2 class="font-head text-2xl sm:text-3xl font-semibold text-navy-900">ติดต่อฝ่ายขาย</h2>
-            <p class="text-gray-500 mt-1">สอบถามราคา สเปค หรือขอคำแนะนำการติดตั้งได้เลย</p>
+          <div class="text-center mb-5">
+            <h2 class="font-head text-2xl sm:text-3xl font-semibold text-navy-900">ติดต่อเจ้าหน้าที่</h2>
+            <p class="text-gray-500 mt-1">เลือกแผนกที่ต้องการติดต่อ แล้วแตะที่รายชื่อเพื่อดูช่องทางติดต่อ</p>
           </div>
-          <div id="salesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-5xl mx-auto"></div>
+          <div id="deptTabsHome" class="grid grid-cols-3 gap-2 max-w-xl mx-auto mb-5"></div>
+          <div id="salesGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 max-w-5xl mx-auto"></div>
         </div>
       </section>
 
@@ -224,7 +225,7 @@
           <p class="text-sm mt-3 max-w-sm" id="footerTag"></p>
         </div>
         <div class="sm:text-right">
-          <p class="font-head text-white mb-3">ติดต่อฝ่ายขาย</p>
+          <p class="font-head text-white mb-3">ติดต่อเจ้าหน้าที่</p>
           <div id="footerContact" class="flex flex-wrap gap-2 sm:justify-end"></div>
           <p class="text-xs mt-4 text-white/40">© <span id="year"></span> All rights reserved.</p>
         </div>
@@ -237,14 +238,25 @@
     </a>
 
     <!-- รายชื่อเซลล์ (เปิดจากปุ่มลอย) -->
-    <div id="contactModal" class="fixed inset-0 z-50 hidden modal-backdrop">
+    <div id="contactModal" class="fixed inset-0 z-[55] hidden modal-backdrop">
       <div class="absolute inset-0 flex items-end sm:items-center justify-center sm:p-6" onclick="if (event.target === this) closeContactModal()">
         <div class="sheet bg-white w-full sm:max-w-lg max-h-[85vh] rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col">
           <div class="flex items-center justify-between px-5 py-4 border-b">
-            <h3 class="font-head text-lg font-semibold text-navy-900"><i class="fas fa-headset text-line mr-1"></i> ติดต่อฝ่ายขาย</h3>
+            <h3 class="font-head text-lg font-semibold text-navy-900"><i class="fas fa-headset text-line mr-1"></i> ติดต่อเจ้าหน้าที่</h3>
             <button onclick="closeContactModal()" class="w-9 h-9 rounded-full hover:bg-gray-100 text-gray-500"><i class="fas fa-times"></i></button>
           </div>
-          <div id="contactModalList" class="overflow-y-auto p-4 space-y-3 safe-bottom"></div>
+          <div id="deptTabsModal" class="grid grid-cols-3 gap-2 px-4 pt-3"></div>
+          <div id="contactModalList" class="overflow-y-auto p-4 space-y-2 safe-bottom"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- รายละเอียดเจ้าหน้าที่ (กดจากการ์ด) -->
+    <div id="saleDetailModal" class="fixed inset-0 z-[60] hidden modal-backdrop">
+      <div class="absolute inset-0 flex items-end sm:items-center justify-center sm:p-6" onclick="if (event.target === this) closeSaleDetail()">
+        <div class="sheet bg-white w-full sm:max-w-md max-h-[90vh] rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col relative">
+          <button onclick="closeSaleDetail()" class="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/90 hover:bg-gray-100 text-gray-500 z-10"><i class="fas fa-times"></i></button>
+          <div id="saleDetailContent" class="overflow-y-auto safe-bottom"></div>
         </div>
       </div>
     </div>
@@ -305,7 +317,7 @@
         <!-- แท็บทีมเซลล์ -->
         <div id="tabSales" class="hidden">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-            <p class="text-sm text-gray-500">รายชื่อนี้จะแสดงในส่วน "ติดต่อฝ่ายขาย" หน้าแรก ในหน้าสินค้า และปุ่ม LINE ลอย (เก็บไว้ในชีต <b>Sales</b>)</p>
+            <p class="text-sm text-gray-500">รายชื่อนี้จะแสดงในส่วน "ติดต่อเจ้าหน้าที่" หน้าแรก ในหน้าสินค้า และปุ่ม LINE ลอย (เก็บไว้ในชีต <b>Sales</b>)</p>
             <button onclick="showAddSale()" class="bg-sun-400 hover:bg-sun-500 text-navy-950 px-5 py-3 rounded-xl font-head font-semibold shadow-card whitespace-nowrap"><i class="fas fa-user-plus mr-1"></i> เพิ่มเซลล์</button>
           </div>
           <div class="bg-white rounded-2xl shadow-card overflow-hidden">
@@ -407,6 +419,14 @@
               <div class="col-span-2 sm:col-span-1">
                 <label class="block text-sm font-medium text-gray-600">ตำแหน่ง</label>
                 <input type="text" id="salePosition" class="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl" placeholder="เช่น Sales Engineer">
+              </div>
+              <div class="col-span-2">
+                <label class="block text-sm font-medium text-gray-600">แผนก</label>
+                <select id="saleDepartment" class="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl bg-white">
+                  <option value="ฝ่ายขาย">ฝ่ายขาย</option>
+                  <option value="ฝ่ายบริการ">ฝ่ายบริการ</option>
+                  <option value="ฝ่ายประสานงาน">ฝ่ายประสานงาน</option>
+                </select>
               </div>
               <div class="col-span-2 sm:col-span-1">
                 <label class="block text-sm font-medium text-gray-600">เบอร์โทร</label>
@@ -696,7 +716,7 @@
       });
 
       document.getElementById('modalWrap').addEventListener('click', e => { if (e.target.id === 'modalWrap') closeModal(); });
-      document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (!document.getElementById('contactModal').classList.contains('hidden')) closeContactModal(); else closeModal(); closeAdminForm(); closeSaleForm(); } });
+      document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (closeSaleDetail()) return; if (!document.getElementById('contactModal').classList.contains('hidden')) closeContactModal(); else closeModal(); closeAdminForm(); closeSaleForm(); } });
       window.addEventListener('popstate', () => applyRoute());
     });
 
@@ -733,11 +753,11 @@
     function renderContacts() {
       const items = contactItems('');
       let footer = items.length ? contactButtonsHtml('', 'sm') : '';
-      if (salesList.length) footer = `<button onclick="openContactModal()" class="bg-line hover:bg-line-dark text-white px-3 py-2 text-sm rounded-xl font-head font-medium inline-flex items-center gap-2"><i class="fas fa-headset"></i> รายชื่อเซลล์ (${salesList.length})</button>` + footer;
+      if (salesList.length) footer = `<button onclick="openContactModal()" class="bg-line hover:bg-line-dark text-white px-3 py-2 text-sm rounded-xl font-head font-medium inline-flex items-center gap-2"><i class="fas fa-headset"></i> รายชื่อเจ้าหน้าที่ (${salesList.length})</button>` + footer;
       document.getElementById('footerContact').innerHTML = footer || '<span class="text-sm">-</span>';
       // ปุ่ม "ติดต่อฝ่ายขาย" แสดงเสมอ (มุมขวาบน, หน้ารายการสินค้า, ปุ่มลอย) กดแล้วเปิดรายชื่อเซลล์
       document.getElementById('headerContact').innerHTML =
-        `<button onclick="openContactModal()" class="inline-flex items-center gap-2 bg-line hover:bg-line-dark text-white rounded-xl px-3 sm:px-4 py-2 text-sm font-head font-medium shadow-lg"><i class="fas fa-headset"></i> ติดต่อฝ่ายขาย</button>`;
+        `<button onclick="openContactModal()" class="inline-flex items-center gap-2 bg-line hover:bg-line-dark text-white rounded-xl px-3 sm:px-4 py-2 text-sm font-head font-medium shadow-lg"><i class="fas fa-headset"></i> ติดต่อเจ้าหน้าที่</button>`;
       const lc = document.getElementById('listContactBtn');
       lc.classList.remove('hidden'); lc.classList.add('inline-flex');
       const fab = document.getElementById('fabLine');
@@ -782,48 +802,120 @@
       return CONFIG.API_URL + '?action=vcard&id=' + encodeURIComponent(sale.ID) + '&site=' + encodeURIComponent(baseUrl());
     }
 
-    // การ์ดเซลล์: variant 'card' = หน้าแรก, 'row' = ในหน้าสินค้า / รายชื่อ
-    function saleCardHtml(sale, productName, variant) {
+    // แผนกที่ให้ลูกค้าเลือกติดต่อ (ค่าในคอลัมน์ Department ของชีต Sales)
+    const DEPARTMENTS = [
+      { key: 'ฝ่ายขาย', icon: 'fas fa-handshake', desc: 'สอบถามราคา สเปค ใบเสนอราคา' },
+      { key: 'ฝ่ายบริการ', icon: 'fas fa-screwdriver-wrench', desc: 'ติดตั้ง ซ่อมบำรุง เคลมสินค้า' },
+      { key: 'ฝ่ายประสานงาน', icon: 'fas fa-people-arrows', desc: 'นัดหมาย จัดส่ง เอกสาร' }
+    ];
+    let activeDept = DEPARTMENTS[0].key;
+
+    // คนที่ยังไม่ได้เลือกแผนก นับเป็นฝ่ายขาย
+    function saleDept(sale) {
+      const d = String(sale.Department || '').trim();
+      return DEPARTMENTS.some(x => x.key === d) ? d : DEPARTMENTS[0].key;
+    }
+
+    function deptTabsHtml() {
+      return DEPARTMENTS.map(d => {
+        const on = d.key === activeDept;
+        const n = salesList.filter(sl => saleDept(sl) === d.key).length;
+        return `<button onclick="setDept('${d.key}')" class="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 py-2.5 rounded-xl font-head text-[13px] sm:text-sm font-medium whitespace-nowrap transition ${on ? 'bg-navy-900 text-white shadow-card' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}">
+          <i class="${d.icon} text-base sm:text-sm ${on ? 'text-sun-300' : 'text-gray-400'}"></i><span>${d.key}${n ? ` <span class="text-xs ${on ? 'text-white/60' : 'text-gray-400'}">(${n})</span>` : ''}</span></button>`;
+      }).join('');
+    }
+
+    function setDept(key) {
+      activeDept = key;
+      renderSales();
+      if (!document.getElementById('contactModal').classList.contains('hidden')) renderContactModal();
+    }
+
+    function deptEmptyHtml() {
+      const d = DEPARTMENTS.find(x => x.key === activeDept);
+      const extra = contactButtonsHtml(currentProduct ? currentProduct.ProductName : '', 'sm');
+      return `<div class="col-span-full text-center py-8 text-gray-500">
+        <div class="w-14 h-14 rounded-full bg-navy-50 text-navy-600 grid place-items-center mx-auto text-xl"><i class="${d.icon}"></i></div>
+        <p class="font-head mt-3 text-gray-700">กำลังเตรียมข้อมูล${esc(d.key)}</p>
+        <p class="text-sm mt-1">${extra ? 'ติดต่อผ่านช่องทางด้านล่างได้เลย' : 'กรุณาเลือกแผนกอื่น หรือลองใหม่ภายหลัง'}</p>
+        ${extra ? `<div class="flex flex-wrap justify-center gap-2 mt-4">${extra}</div>` : ''}
+      </div>`;
+    }
+
+    // การ์ดเซลล์: variant 'card' = หน้าแรก, 'row' = ในรายชื่อ (แสดงแค่รูป ชื่อ ตำแหน่ง กดเพื่อดูรายละเอียด)
+    function saleCardHtml(sale, variant) {
+      const id = esc(JSON.stringify(String(sale.ID)));
       if (variant === 'row') {
-        return `<div class="flex items-center gap-3 bg-white/95 text-gray-800 rounded-xl p-3">
+        return `<button onclick="openSaleDetail(${id})" class="w-full flex items-center gap-3 bg-gray-50 hover:bg-navy-50 border border-gray-100 rounded-xl p-3 text-left transition">
           ${salePhoto(sale, 'w-12 h-12')}
           <div class="min-w-0 flex-1">
             <p class="font-head font-semibold text-navy-900 truncate">${esc(sale.Name)}</p>
             ${sale.Position ? `<p class="text-xs text-gray-500 truncate">${esc(sale.Position)}</p>` : ''}
-            <div class="flex flex-wrap gap-1.5 mt-2">${saleButtons(sale, productName, 'sm')}</div>
           </div>
-        </div>`;
+          <i class="fas fa-chevron-right text-gray-300"></i>
+        </button>`;
       }
-      return `<div class="fade-in bg-white rounded-2xl shadow-card p-5 flex flex-col items-center text-center">
-        ${salePhoto(sale, 'w-24 h-24 text-3xl ring-4 ring-sun-100')}
-        <p class="font-head font-semibold text-lg text-navy-900 mt-3">${esc(sale.Name)}</p>
-        ${sale.Position ? `<p class="text-sm text-sun-600 font-medium">${esc(sale.Position)}</p>` : ''}
-        ${sale.Details ? `<p class="text-sm text-gray-500 mt-2 whitespace-pre-line">${esc(sale.Details)}</p>` : ''}
-        <div class="flex flex-wrap justify-center gap-2 mt-4">${saleButtons(sale, '', 'md')}</div>
-      </div>`;
+      return `<button onclick="openSaleDetail(${id})" class="fade-in bg-white rounded-2xl shadow-card hover:shadow-lift hover:-translate-y-0.5 transition p-4 sm:p-5 flex flex-col items-center text-center">
+        ${salePhoto(sale, 'w-20 h-20 sm:w-24 sm:h-24 text-3xl ring-4 ring-sun-100')}
+        <p class="font-head font-semibold text-navy-900 mt-3 leading-snug">${esc(sale.Name)}</p>
+        ${sale.Position ? `<p class="text-xs sm:text-sm text-sun-600 font-medium mt-0.5">${esc(sale.Position)}</p>` : ''}
+        <span class="text-xs text-gray-400 mt-2">ดูรายละเอียด <i class="fas fa-chevron-right text-[10px]"></i></span>
+      </button>`;
     }
 
     function renderSales() {
       document.getElementById('salesSection').classList.remove('hidden');
-      document.getElementById('salesGrid').innerHTML = salesList.length
-        ? salesList.map(sl => saleCardHtml(sl, '', 'card')).join('')
-        : `<div class="col-span-full text-center"><button onclick="openContactModal()" class="inline-flex items-center gap-2 bg-line hover:bg-line-dark text-white px-8 py-4 rounded-2xl font-head font-semibold text-lg shadow-lift"><i class="fas fa-headset"></i> ติดต่อฝ่ายขาย</button></div>`;
+      document.getElementById('deptTabsHome').innerHTML = deptTabsHtml();
+      const list = salesList.filter(sl => saleDept(sl) === activeDept);
+      document.getElementById('salesGrid').innerHTML = list.length
+        ? list.map(sl => saleCardHtml(sl, 'card')).join('')
+        : deptEmptyHtml();
     }
 
-    function openContactModal() {
-      const productName = currentProduct ? currentProduct.ProductName : '';
-      let html = salesList.map(sl =>
-        saleCardHtml(sl, productName, 'row').replace('bg-white/95', 'bg-gray-50 border border-gray-100')).join('');
-      const extra = contactButtonsHtml(productName);
-      if (extra) html += `<div class="flex flex-wrap gap-2 pt-1">${extra}</div>`;
-      if (!html) html = `<div class="text-center py-8 text-gray-500">
-          <div class="w-14 h-14 rounded-full bg-navy-50 text-navy-600 grid place-items-center mx-auto text-xl"><i class="fas fa-user-clock"></i></div>
-          <p class="font-head mt-3 text-gray-700">กำลังเตรียมข้อมูลฝ่ายขาย</p>
-          <p class="text-sm mt-1">กรุณาลองใหม่อีกครั้งภายหลัง</p>
-        </div>`;
-      document.getElementById('contactModalList').innerHTML = html;
+    function renderContactModal() {
+      document.getElementById('deptTabsModal').innerHTML = deptTabsHtml();
+      const list = salesList.filter(sl => saleDept(sl) === activeDept);
+      document.getElementById('contactModalList').innerHTML = list.length
+        ? list.map(sl => saleCardHtml(sl, 'row')).join('')
+        : deptEmptyHtml();
+    }
+
+    function openContactModal(dept) {
+      if (dept) activeDept = dept;
+      renderSales();
+      renderContactModal();
       document.getElementById('contactModal').classList.remove('hidden');
       document.body.style.overflow = 'hidden';
+    }
+
+    // รายละเอียดเต็มของเจ้าหน้าที่ + ปุ่มติดต่อ
+    function openSaleDetail(id) {
+      const sale = salesList.find(sl => String(sl.ID) === String(id));
+      if (!sale) return;
+      const productName = currentProduct ? currentProduct.ProductName : '';
+      const dept = DEPARTMENTS.find(x => x.key === saleDept(sale));
+      document.getElementById('saleDetailContent').innerHTML = `
+        <div class="bg-gradient-to-b from-navy-900 to-navy-800 h-24"></div>
+        <div class="px-6 pb-6 -mt-14 flex flex-col items-center text-center">
+          ${salePhoto(sale, 'w-28 h-28 text-4xl ring-4 ring-white shadow-card')}
+          <p class="font-head font-semibold text-xl text-navy-900 mt-3">${esc(sale.Name)}</p>
+          ${sale.Position ? `<p class="text-sm text-sun-600 font-medium">${esc(sale.Position)}</p>` : ''}
+          <span class="inline-flex items-center gap-1.5 mt-2 bg-navy-50 text-navy-700 text-xs font-medium px-3 py-1 rounded-full"><i class="${dept.icon}"></i> ${esc(dept.key)}</span>
+          ${sale.Details ? `<p class="text-sm text-gray-600 mt-4 whitespace-pre-line text-left w-full bg-gray-50 rounded-xl p-3">${esc(sale.Details)}</p>` : ''}
+          ${productName ? `<p class="text-xs text-gray-500 mt-4">ข้อความ LINE จะแนบชื่อสินค้า: ${esc(productName)}</p>` : ''}
+          <div class="grid grid-cols-2 gap-2 mt-4 w-full [&>a]:justify-center [&>a:only-child]:col-span-2">${saleButtons(sale, productName, 'md')}</div>
+        </div>`;
+      document.getElementById('saleDetailModal').classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeSaleDetail() {
+      const m = document.getElementById('saleDetailModal');
+      if (m.classList.contains('hidden')) return false;
+      m.classList.add('hidden');
+      const others = ['contactModal', 'productModal'].some(id => !document.getElementById(id).classList.contains('hidden'));
+      if (!others) document.body.style.overflow = '';
+      return true;
     }
 
     function closeContactModal() {
@@ -1115,7 +1207,7 @@
       const d = parseDescription(item.Description);
       const color = brandColor(item.Brand);
       const contact = salesList.length
-        ? `<div class="space-y-2">${salesList.map(sl => saleCardHtml(sl, item.ProductName, 'row')).join('')}</div>`
+        ? `<div class="grid grid-cols-3 gap-2">${DEPARTMENTS.map(dp => `<button onclick="openContactModal('${dp.key}')" class="bg-white/95 hover:bg-white text-navy-900 rounded-xl px-1 py-2.5 font-head font-medium text-[13px] whitespace-nowrap flex flex-col items-center justify-center gap-1"><i class="${dp.icon} text-base text-sun-500"></i> ${dp.key}</button>`).join('')}</div>`
         : (contactButtonsHtml(item.ProductName) ? `<div class="flex flex-wrap gap-2">${contactButtonsHtml(item.ProductName)}</div>` : '');
 
       document.getElementById('modalContent').innerHTML = `
@@ -1169,8 +1261,8 @@
 
             ${contact ? `
             <div class="mt-4 rounded-2xl bg-navy-900 text-white p-4 safe-bottom">
-              <h4 class="font-head font-semibold">สนใจสินค้านี้? สอบถามราคากับเซลล์</h4>
-              <p class="text-white/60 text-sm mb-3">ตอบไว ให้คำแนะนำการติดตั้งฟรี</p>
+              <h4 class="font-head font-semibold">สนใจสินค้านี้? ติดต่อเจ้าหน้าที่</h4>
+              <p class="text-white/60 text-sm mb-3">เลือกแผนกที่ต้องการติดต่อ</p>
               ${contact}
             </div>` : '<div class="h-2 safe-bottom"></div>'}
           </div>
@@ -1370,7 +1462,7 @@
         const hidden = String(sl.Status || '').toLowerCase() === 'hide';
         return `<tr class="hover:bg-gray-50/70">
           <td class="px-4 py-3"><div class="flex items-center gap-3">${salePhoto(sl, 'w-11 h-11')}
-            <div class="min-w-0"><p class="font-medium text-gray-800">${esc(sl.Name)}</p><p class="text-xs text-gray-500">${esc(sl.Position || '')}</p></div></div></td>
+            <div class="min-w-0"><p class="font-medium text-gray-800">${esc(sl.Name)}</p><p class="text-xs text-gray-500">${esc(sl.Position || '')}</p><span class="inline-block mt-1 bg-navy-50 text-navy-700 text-[11px] px-2 py-0.5 rounded-full">${esc(saleDept(sl))}</span></div></div></td>
           <td class="px-4 py-3 hidden sm:table-cell text-sm text-gray-600">${sl.Phone ? '<i class="fas fa-phone text-xs mr-1"></i>' + esc(sl.Phone) + '<br>' : ''}${sl.LINE ? '<i class="fab fa-line text-line mr-1"></i>' + esc(sl.LINE) : ''}</td>
           <td class="px-4 py-3">${hidden
             ? '<span class="inline-flex items-center gap-1 bg-gray-100 text-gray-600 text-xs px-2.5 py-1 rounded-full"><span class="w-1.5 h-1.5 rounded-full bg-gray-400"></span>ซ่อน</span>'
@@ -1393,6 +1485,7 @@
       document.getElementById('saleForm').reset();
       document.getElementById('saleID').value = sale.ID || '';
       ['Name', 'Position', 'Phone', 'LINE', 'Email', 'Details', 'Order'].forEach(k => document.getElementById('sale' + k).value = sale[k] || '');
+      document.getElementById('saleDepartment').value = saleDept(sale);
       document.getElementById('salePhotoURL').value = sale.Photo || '';
       document.getElementById('saleStatus').value = String(sale.Status || '').toLowerCase() === 'hide' ? 'Hide' : 'Show';
       document.getElementById('saleFormTitle').innerText = sale.ID ? 'แก้ไขข้อมูลเซลล์' : 'เพิ่มเซลล์';
@@ -1418,7 +1511,7 @@
       Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
       try {
         const sale = { ID: document.getElementById('saleID').value, Photo: document.getElementById('salePhotoURL').value, Status: document.getElementById('saleStatus').value };
-        ['Name', 'Position', 'Phone', 'LINE', 'Email', 'Details', 'Order'].forEach(k => sale[k] = document.getElementById('sale' + k).value.trim());
+        ['Name', 'Position', 'Phone', 'LINE', 'Email', 'Details', 'Order', 'Department'].forEach(k => sale[k] = document.getElementById('sale' + k).value.trim());
         const file = await getFileBase64('fileSalePhoto');
         if (file) {
           Swal.update({ title: 'กำลังอัปโหลดรูป...' }); Swal.showLoading();

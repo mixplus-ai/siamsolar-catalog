@@ -315,7 +315,7 @@ function saveProductOrder(orders) {
 // ==========================================
 // 5. ทีมเซลล์ (ชีต Sales)
 // ==========================================
-const SALES_HEADERS = ['ID', 'Name', 'Position', 'Phone', 'LINE', 'Email', 'Photo', 'Details', 'Order', 'Status'];
+const SALES_HEADERS = ['ID', 'Name', 'Position', 'Phone', 'LINE', 'Email', 'Photo', 'Details', 'Order', 'Status', 'Department'];
 
 function getSalesSheet(create) {
   const ss = SpreadsheetApp.openById(SHEET_ID);
@@ -326,6 +326,16 @@ function getSalesSheet(create) {
     sheet.setFrozenRows(1);
   }
   return sheet;
+}
+
+// เติมคอลัมน์ที่ยังไม่มี (เช่น Department) ต่อท้ายชีต Sales เดิม
+function ensureSalesHeaders(sheet) {
+  const lastCol = Math.max(sheet.getLastColumn(), 1);
+  const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h).trim());
+  const missing = SALES_HEADERS.filter(h => headers.indexOf(h) === -1);
+  if (missing.length) {
+    sheet.getRange(1, lastCol + 1, 1, missing.length).setValues([missing]).setFontWeight('bold');
+  }
 }
 
 function readSales() {
@@ -357,6 +367,7 @@ function saveSale(sale) {
   lock.waitLock(20000);
   try {
     const sheet = getSalesSheet(true);
+    ensureSalesHeaders(sheet);
     const data = sheet.getDataRange().getValues();
     const headers = data[0].map(h => String(h).trim());
     const idCol = headers.indexOf('ID');
@@ -411,7 +422,7 @@ function saleVCard(id, site) {
     'VERSION:3.0',
     'N:' + esc(sale.Name) + ';' + esc(CONTACT_PREFIX) + ';;;',
     'FN:' + esc(fullName),
-    'ORG:' + esc(CONTACT_PREFIX)
+    'ORG:' + esc(CONTACT_PREFIX) + (sale.Department ? ';' + esc(sale.Department) : '')
   ];
   if (sale.Position) lines.push('TITLE:' + esc(sale.Position));
   if (sale.Phone) lines.push('TEL;TYPE=CELL,VOICE:' + String(sale.Phone).replace(/[^\d+]/g, ''));
