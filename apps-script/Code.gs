@@ -160,6 +160,7 @@ const FIELD_RULES = [
   ['Brand',       h => h.includes('brand') || h.includes('แบรนด์')],
   ['Description', h => h.includes('detail') || h.includes('description') || h.includes('รายละเอียด')],
   ['Tags',        h => h.includes('tag')],
+  ['Gallery',     h => h.includes('gallery') || h.includes('รูปเพิ่มเติม')],
   ['CoverImg',    h => h.includes('image') || h.includes('cover') || h.includes('รูป')],
   ['Datasheet',   h => h.includes('datasheet')],
   ['Manual',      h => h.includes('manual') || h.includes('คู่มือ')],
@@ -243,6 +244,10 @@ function saveProduct(productData) {
   lock.waitLock(20000);
   try {
     const sheet = getProductSheet();
+    // ใส่รูปเพิ่มเติมครั้งแรก: เพิ่มคอลัมน์ "รูปเพิ่มเติม (Gallery)" ต่อท้ายให้
+    if (productData.Gallery && headerKeys(sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]).indexOf('Gallery') === -1) {
+      sheet.getRange(1, sheet.getLastColumn() + 1).setValue('รูปเพิ่มเติม (Gallery)');
+    }
     const data = sheet.getDataRange().getValues();
     const keys = headerKeys(data[0]);
     const idCol = keys.indexOf('ID');
@@ -317,9 +322,9 @@ function saveProductOrder(orders) {
 }
 
 // ==========================================
-// 4.1 แบรนด์ (ชีต Brands) ชื่อ สี โลโก้ ลำดับ ซ่อน/แสดง
+// 4.1 แบรนด์ (ชีต Brands) ชื่อ สี โลโก้ ลำดับ ซ่อน/แสดง รูปปุ่มแบรนด์
 // ==========================================
-const BRAND_HEADERS = ['Name', 'Color', 'Logo', 'Order', 'Status'];
+const BRAND_HEADERS = ['Name', 'Color', 'Logo', 'Order', 'Status', 'Cover'];
 
 // ยังไม่มีชีต Brands = คืนค่าว่าง แล้วหน้าเว็บจะใช้รายการแบรนด์ตั้งต้นใน index.html
 function readBrandsSafe() {
@@ -354,6 +359,7 @@ function saveBrands(brands) {
         OldName: String(b.OldName || '').trim(),
         Color: /^#[0-9a-f]{3,8}$/i.test(String(b.Color || '').trim()) ? String(b.Color).trim() : '#1d3f8f',
         Logo: String(b.Logo || '').trim(),
+        Cover: String(b.Cover || '').trim(),
         Status: String(b.Status || '').toLowerCase() === 'hide' ? 'Hide' : 'Show'
       }))
       .filter(b => b.Name);
@@ -366,7 +372,7 @@ function saveBrands(brands) {
     let sheet = ss.getSheetByName(BRANDS_SHEET_NAME);
     if (!sheet) sheet = ss.insertSheet(BRANDS_SHEET_NAME);
     sheet.clearContents();
-    const rows = [BRAND_HEADERS].concat(clean.map((b, i) => [b.Name, b.Color, b.Logo, i + 1, b.Status]));
+    const rows = [BRAND_HEADERS].concat(clean.map((b, i) => [b.Name, b.Color, b.Logo, i + 1, b.Status, b.Cover]));
     sheet.getRange(1, 1, rows.length, BRAND_HEADERS.length).setValues(rows);
     sheet.getRange(1, 1, 1, BRAND_HEADERS.length).setFontWeight('bold');
     sheet.setFrozenRows(1);

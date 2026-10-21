@@ -511,10 +511,20 @@
                 <p class="text-xs text-gray-500">เลือกไฟล์ใหม่ ระบบจะอัปโหลดขึ้น Google Drive ตอนกดบันทึก ถ้ามีลิงก์เดิมแล้วปล่อยว่างได้ (ไฟล์ละไม่เกิน ~20MB)</p>
               </div>
 
-              <div class="col-span-2 sm:col-span-1">
-                <label class="block text-sm font-medium text-gray-600">รูปภาพหน้าปก</label>
+              <div class="col-span-2">
+                <label class="block text-sm font-medium text-gray-600">รูปภาพหน้าปก <span class="font-normal text-gray-400">(รูปแรกที่ลูกค้าเห็น)</span></label>
                 <input type="text" id="formCoverURL" class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-xs text-gray-500 mb-1.5" placeholder="URL รูปภาพ (ถ้ามี)">
                 <input type="file" id="fileCover" accept="image/*" class="w-full text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-navy-50 file:text-navy-700">
+              </div>
+              <div class="col-span-2">
+                <label class="block text-sm font-medium text-gray-600">รูปเพิ่มเติม <span class="font-normal text-gray-400">(ใส่ได้หลายรูป ลูกค้าเลื่อนดูได้ในหน้าสินค้า)</span></label>
+                <div id="galleryAdmin" class="flex flex-wrap gap-2 mt-2"></div>
+                <div class="flex gap-2 mt-2">
+                  <input type="text" id="galleryUrlInput" class="flex-1 min-w-0 px-3 py-2 border border-gray-200 rounded-xl text-xs text-gray-500" placeholder="วางลิงก์รูป (Google Drive ได้) แล้วกดเพิ่ม">
+                  <button type="button" onclick="addGalleryUrl()" class="px-4 py-2 rounded-xl bg-navy-50 text-navy-700 hover:bg-navy-100 text-sm font-medium whitespace-nowrap"><i class="fas fa-plus"></i> เพิ่ม</button>
+                </div>
+                <input type="file" id="fileGallery" accept="image/*" multiple class="w-full text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-navy-50 file:text-navy-700 mt-2">
+                <p class="text-xs text-gray-400 mt-1">เลือกได้หลายไฟล์พร้อมกัน ระบบจะอัปโหลดตอนกดบันทึก</p>
               </div>
               <div class="col-span-2 sm:col-span-1">
                 <label class="block text-sm font-medium text-gray-600">Datasheet (PDF)</label>
@@ -553,6 +563,7 @@
   <!-- ============================================== -->
   <script>
     let clientProducts = [];
+    let currentTag = null;
     let adminProducts = [];
     let currentBrand = null;
     let shownProducts = [];
@@ -620,6 +631,19 @@
       return item;
     }
 
+    // รูปเพิ่มเติม: เก็บในชีตเป็นลิงก์บรรทัดละรูป (หรือคั่นด้วยจุลภาค)
+    function galleryList(v) {
+      return String(v || '').split(/[\n,]+/).map(x => x.trim()).filter(Boolean)
+        .map(x => /^[\w-]{25,}$/.test(x) ? 'https://drive.google.com/file/d/' + x + '/view' : x)
+        .filter(x => /^https?:\/\//i.test(x));
+    }
+
+    function productImages(item) {
+      const list = safeUrl(item.CoverImg) ? [item.CoverImg] : [];
+      galleryList(item.Gallery).forEach(u => { if (!list.includes(u)) list.push(u); });
+      return list;
+    }
+
     function safeUrl(u) {
       u = String(u || '').trim();
       return /^https?:\/\//i.test(u) ? u : '';
@@ -648,7 +672,7 @@
 
     function brandColor(name) {
       const b = BRANDS.find(b => b.name === name);
-      return b ? b.color : '#1d3f8f';
+      return b ? b.color : defaultColor(name);
     }
 
     function splitTags(tags) {
@@ -715,6 +739,12 @@
         loadSortBrand();
       });
       ['saleName', 'salePhotoURL'].forEach(id => document.getElementById(id).addEventListener('input', updateSalePreview));
+      document.getElementById('fileGallery').addEventListener('change', e => {
+        Array.from(e.target.files || []).forEach(f => formGallery.push({ file: f, preview: URL.createObjectURL(f) }));
+        e.target.value = '';
+        renderGalleryAdmin();
+      });
+      document.getElementById('galleryUrlInput').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addGalleryUrl(); } });
       document.getElementById('fileSalePhoto').addEventListener('change', e => {
         const f = e.target.files && e.target.files[0];
         if (f) document.getElementById('salePhotoPreview').innerHTML = `<img src="${URL.createObjectURL(f)}" class="w-20 h-20 rounded-full object-cover">`;
@@ -723,6 +753,15 @@
       document.getElementById('modalWrap').addEventListener('click', e => { if (e.target.id === 'modalWrap') closeModal(); });
       document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (closeSaleDetail()) return; if (!document.getElementById('contactModal').classList.contains('hidden')) closeContactModal(); else closeModal(); closeAdminForm(); closeSaleForm(); } });
       window.addEventListener('popstate', () => applyRoute());
+      // ปัดซ้าย/ขวาที่รูปสินค้าเพื่อเปลี่ยนรูป
+      let touchX = null;
+      document.addEventListener('touchstart', e => { touchX = e.target.closest('#galleryStage') ? e.touches[0].clientX : null; }, { passive: true });
+      document.addEventListener('touchend', e => {
+        if (touchX === null) return;
+        const dx = e.changedTouches[0].clientX - touchX;
+        if (Math.abs(dx) > 40) galleryStep(dx < 0 ? 1 : -1);
+        touchX = null;
+      }, { passive: true });
     });
 
     // ------------------------------------------
@@ -978,11 +1017,13 @@
       const counts = {};
       clientProducts.forEach(p => { if (p.Brand) counts[p.Brand] = (counts[p.Brand] || 0) + 1; });
       // แบรนด์ที่อยู่ใน Sheet แต่ยังไม่มีใน BRANDS ก็แสดงด้วย
-      const extra = Object.keys(counts).filter(n => !BRANDS.some(b => b.name === n)).map(n => ({ name: n, color: '#1d3f8f', logo: '' }));
+      const extra = Object.keys(counts).filter(n => !BRANDS.some(b => b.name === n)).map(n => ({ name: n, color: defaultColor(n), logo: '' }));
       // รูปบนปุ่มแบรนด์ = รูปของสินค้าลำดับแรกที่มีรูป (เปลี่ยนได้ด้วยการจัดเรียงในหน้าแอดมิน)
       const cover = {};
       clientProducts.forEach(p => { if (p.Brand && !cover[p.Brand] && safeUrl(p.CoverImg)) cover[p.Brand] = imgUrl(p.CoverImg); });
-      return BRANDS.concat(extra).filter(b => counts[b.name] && !b.hidden).map(b => Object.assign({ count: counts[b.name], cover: cover[b.name] || '' }, b));
+      // ถ้าตั้ง "รูปปุ่มแบรนด์" ไว้ในแท็บแบรนด์ จะใช้รูปนั้นแทน
+      return BRANDS.concat(extra).filter(b => counts[b.name] && !b.hidden)
+        .map(b => Object.assign({}, b, { count: counts[b.name], cover: safeUrl(b.cover) ? imgUrl(b.cover) : (cover[b.name] || '') }));
     }
 
     // เรียงตามคอลัมน์ลำดับ (Order) ที่ตั้งในหน้าแอดมิน สินค้าที่ไม่มีลำดับอยู่ท้าย ตามลำดับแถวใน Sheet
@@ -1035,6 +1076,7 @@
     function urlFor(brand, pid) {
       const q = new URLSearchParams();
       if (brand) q.set('brand', brand);
+      else if (currentTag) q.set('tag', currentTag);
       if (pid) q.set('p', pid);
       const qs = q.toString();
       return location.pathname + (qs ? '?' + qs : '');
@@ -1042,13 +1084,30 @@
 
     function openBrand(name) {
       currentBrand = name;
+      currentTag = null;
       history.pushState({}, '', urlFor(name));
+      render();
+      window.scrollTo({ top: 0 });
+    }
+
+    // กดแท็ก: แสดงสินค้าทุกแบรนด์ที่มีแท็กเดียวกัน (?tag=5kw)
+    function openTag(tag) {
+      currentTag = tag;
+      currentBrand = null;
+      const search = document.getElementById('searchInput');
+      search.value = '';
+      document.getElementById('clearSearch').classList.add('hidden');
+      document.getElementById('productModal').classList.add('hidden');
+      document.body.style.overflow = '';
+      currentProduct = null;
+      history.pushState({}, '', urlFor());
       render();
       window.scrollTo({ top: 0 });
     }
 
     function goHome() {
       currentBrand = null;
+      currentTag = null;
       const search = document.getElementById('searchInput');
       search.value = '';
       document.getElementById('clearSearch').classList.add('hidden');
@@ -1061,14 +1120,15 @@
       const params = new URLSearchParams(location.search);
       const pid = params.get('p');
       const item = pid ? clientProducts.find(p => String(p.ID) === pid) : null;
-      currentBrand = params.get('brand') || (item ? item.Brand : null);
+      currentTag = params.get('tag') || null;
+      currentBrand = params.get('brand') || (item && !currentTag ? item.Brand : null);
       render();
       if (item) openProduct(item, true); else closeModal(true);
     }
 
     function render() {
       const q = document.getElementById('searchInput').value.trim();
-      const listing = !!(currentBrand || q);
+      const listing = !!(currentBrand || q || currentTag);
       document.getElementById('brandHome').classList.toggle('hidden', listing);
       document.getElementById('productSection').classList.toggle('hidden', !listing);
       document.getElementById('heroIntro').classList.toggle('hidden', listing);
@@ -1113,12 +1173,16 @@
         (p.Description || '').toLowerCase().includes(q)
       );
       if (currentBrand && currentBrand !== 'All') filtered = filtered.filter(p => p.Brand === currentBrand);
+      const tagKey = currentTag ? currentTag.toLowerCase() : '';
+      if (tagKey) filtered = filtered.filter(p => splitTags(p.Tags).some(t => t.toLowerCase() === tagKey));
 
       const b = currentBrand && currentBrand !== 'All' ? (brandList().find(x => x.name === currentBrand) || { name: currentBrand, color: brandColor(currentBrand), logo: '' }) : null;
-      document.getElementById('listBrandLogo').innerHTML = b ? brandMark(b, 'sm') : '';
+      document.getElementById('listBrandLogo').innerHTML = b ? brandMark(b, 'sm')
+        : (tagKey ? '<span class="h-9 w-9 sm:h-11 sm:w-11 rounded-xl grid place-items-center bg-navy-900 text-sun-300 font-head font-bold text-lg">#</span>' : '');
       const inBrand = currentBrand && currentBrand !== 'All';
       let title = inBrand ? currentBrand : 'สินค้าทั้งหมด';
-      if (q) title = `ค้นหา “${q}”` + (inBrand ? ' ใน ' + currentBrand : '');
+      if (tagKey) title = '#' + currentTag;
+      if (q) title = `ค้นหา “${q}”` + (inBrand ? ' ใน ' + currentBrand : tagKey ? ' ใน #' + currentTag : '');
       document.getElementById('resultTitle').textContent = title;
       document.getElementById('resultCount').textContent = filtered.length + ' รายการ';
       renderClientProducts(filtered);
@@ -1166,11 +1230,12 @@
           <div class="relative aspect-[4/3] bg-navy-50 overflow-hidden">
             <img src="${esc(imgUrl(item.CoverImg))}" loading="lazy" class="card-img w-full h-full object-cover" alt="${esc(item.ProductName)}" onerror="this.src=NO_IMAGE">
             <span class="absolute top-2.5 left-2.5 text-[11px] sm:text-xs font-head font-semibold text-white px-2.5 py-1 rounded-full shadow" style="background:${color}">${esc(item.Brand)}</span>
+            ${productImages(item).length > 1 ? `<span class="absolute bottom-2.5 right-2.5 text-[11px] bg-navy-900/70 text-white rounded-full px-2 py-0.5"><i class="far fa-images mr-1"></i>${productImages(item).length}</span>` : ''}
             ${hasDoc ? '<span class="absolute top-2.5 right-2.5 w-7 h-7 rounded-full bg-white/90 text-red-500 grid place-items-center text-xs shadow" title="มีเอกสาร"><i class="fas fa-file-pdf"></i></span>' : ''}
           </div>
           <div class="p-3 sm:p-4 flex-grow flex flex-col">
             <h3 class="font-head font-medium text-[15px] sm:text-base text-navy-900 leading-snug line-clamp-2">${esc(item.ProductName)}</h3>
-            <div class="mt-2 flex flex-wrap gap-1">${tags.map(t => `<span class="text-[11px] bg-gray-100 text-gray-600 rounded-md px-1.5 py-0.5">#${esc(t)}</span>`).join('')}</div>
+            <div class="mt-2 flex flex-wrap gap-1">${tags.map(t => `<button onclick="event.stopPropagation(); openTag(${esc(JSON.stringify(t))})" class="text-[11px] ${currentTag && t.toLowerCase() === currentTag.toLowerCase() ? 'bg-navy-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-navy-100'} rounded-md px-1.5 py-0.5">#${esc(t)}</button>`).join('')}</div>
             <div class="mt-auto pt-3 flex items-center justify-between text-sm">
               <span class="text-navy-600 font-medium">ดูสเปค <i class="fas fa-arrow-right text-xs"></i></span>
               <button onclick="event.stopPropagation(); quickLine(${i})" class="w-8 h-8 rounded-full bg-line/10 text-line hover:bg-line hover:text-white grid place-items-center transition" title="ส่งสเปคเข้า LINE"><i class="fab fa-line"></i></button>
@@ -1187,6 +1252,20 @@
 
     function openModal(index) { openProduct(shownProducts[index]); }
 
+    let galleryImages = [], galleryIndex = 0;
+    function galleryShow(k) {
+      if (!galleryImages.length) return;
+      galleryIndex = (k + galleryImages.length) % galleryImages.length;
+      document.getElementById('galleryMain').src = imgUrl(galleryImages[galleryIndex]);
+      const c = document.getElementById('galleryCount');
+      if (c) c.textContent = (galleryIndex + 1) + ' / ' + galleryImages.length;
+      document.querySelectorAll('#galleryThumbs button').forEach((b, i) => {
+        b.classList.toggle('border-navy-900', i === galleryIndex);
+        b.classList.toggle('border-transparent', i !== galleryIndex);
+      });
+    }
+    function galleryStep(d) { galleryShow(galleryIndex + d); }
+
     function openProduct(item, fromHistory) {
       currentProduct = item;
       const video = safeUrl(item.VideoLink), ds = docUrl(item.Datasheet), man = docUrl(item.Manual), other = docUrl(item.OtherFile);
@@ -1196,12 +1275,22 @@
         ? `<div class="grid grid-cols-3 gap-2">${DEPARTMENTS.map(dp => `<button onclick="openContactModal('${dp.key}')" class="bg-white/95 hover:bg-white text-navy-900 rounded-xl px-1 py-2.5 font-head font-medium text-[13px] whitespace-nowrap flex flex-col items-center justify-center gap-1"><i class="${dp.icon} text-base text-sun-500"></i> ${dp.key}</button>`).join('')}</div>`
         : (contactButtonsHtml(item.ProductName) ? `<div class="flex flex-wrap gap-2">${contactButtonsHtml(item.ProductName)}</div>` : '');
 
+      const images = productImages(item);
+      galleryImages = images; galleryIndex = 0;
       document.getElementById('modalContent').innerHTML = `
         <div class="grid md:grid-cols-2">
           <!-- รูป -->
-          <div class="relative bg-navy-50 md:sticky md:top-0 md:self-start">
-            <img src="${esc(imgUrl(item.CoverImg))}" class="w-full aspect-[4/3] md:aspect-square object-cover" onerror="this.src=NO_IMAGE" alt="${esc(item.ProductName)}">
-            <button onclick="closeModal()" class="absolute top-3 right-3 md:hidden w-10 h-10 rounded-full bg-white/90 shadow text-gray-600"><i class="fas fa-times"></i></button>
+          <div class="bg-navy-50 md:sticky md:top-0 md:self-start">
+            <div class="relative" id="galleryStage">
+              <img id="galleryMain" src="${esc(imgUrl(images[0] || ''))}" class="w-full aspect-[4/3] md:aspect-square object-contain bg-white" onerror="this.src=NO_IMAGE" alt="${esc(item.ProductName)}">
+              <button onclick="closeModal()" class="absolute top-3 right-3 md:hidden w-10 h-10 rounded-full bg-white/90 shadow text-gray-600"><i class="fas fa-times"></i></button>
+              ${images.length > 1 ? `
+              <button onclick="galleryStep(-1)" class="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 shadow text-navy-900 hover:bg-white" aria-label="รูปก่อนหน้า"><i class="fas fa-chevron-left"></i></button>
+              <button onclick="galleryStep(1)" class="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/90 shadow text-navy-900 hover:bg-white" aria-label="รูปถัดไป"><i class="fas fa-chevron-right"></i></button>
+              <span id="galleryCount" class="absolute bottom-2 right-2 text-xs bg-navy-900/70 text-white rounded-full px-2.5 py-1">1 / ${images.length}</span>` : ''}
+            </div>
+            ${images.length > 1 ? `<div id="galleryThumbs" class="flex gap-2 p-2 overflow-x-auto bg-white border-t border-gray-100">${images.map((u, k) => `
+              <button onclick="galleryShow(${k})" class="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 ${k === 0 ? 'border-navy-900' : 'border-transparent'} bg-navy-50"><img src="${esc(imgUrl(u))}" loading="lazy" class="w-full h-full object-cover" onerror="this.src=NO_IMAGE" alt=""></button>`).join('')}</div>` : ''}
           </div>
 
           <!-- รายละเอียด -->
@@ -1209,7 +1298,7 @@
             <button onclick="closeModal()" class="hidden md:grid absolute top-5 right-5 w-10 h-10 rounded-full hover:bg-gray-100 text-gray-500 place-items-center"><i class="fas fa-times"></i></button>
             <span class="inline-block text-xs font-head font-semibold text-white px-3 py-1 rounded-full" style="background:${color}">${esc(item.Brand)}</span>
             <h2 class="font-head text-2xl sm:text-3xl font-semibold text-navy-900 mt-3 pr-10 leading-tight">${esc(item.ProductName)}</h2>
-            <div class="flex flex-wrap gap-1.5 mt-3">${splitTags(item.Tags).map(t => `<span class="text-xs bg-navy-50 text-navy-700 rounded-full px-2.5 py-1">#${esc(t)}</span>`).join('')}</div>
+            <div class="flex flex-wrap gap-1.5 mt-3">${splitTags(item.Tags).map(t => `<button onclick="openTag(${esc(JSON.stringify(t))})" class="text-xs bg-navy-50 text-navy-700 hover:bg-navy-900 hover:text-white rounded-full px-2.5 py-1 transition">#${esc(t)}</button>`).join('')}</div>
 
             ${d.text ? `<p class="text-gray-600 mt-4 whitespace-pre-line leading-relaxed">${esc(d.text)}</p>` : ''}
 
@@ -1328,6 +1417,12 @@
 
     // ---------- แบรนด์ ----------
     // ใช้ค่าจากชีต Brands (ถ้ามี) แทนรายการตั้งต้น
+    const DEFAULT_BRANDS = BRANDS.slice();
+    function defaultColor(name) {
+      const d = DEFAULT_BRANDS.find(b => b.name === name);
+      return d ? d.color : '#1d3f8f';
+    }
+
     function applyBrandConfig(list) {
       if (!Array.isArray(list) || !list.length) return;
       const logo = v => { v = String(v || '').trim(); return /^[\w-]{25,}$/.test(v) ? 'https://drive.google.com/file/d/' + v + '/view' : v; };
@@ -1335,6 +1430,7 @@
         name: String(b.Name).trim(),
         color: /^#[0-9a-f]{3,8}$/i.test(String(b.Color || '').trim()) ? String(b.Color).trim() : '#1d3f8f',
         logo: logo(b.Logo),
+        cover: logo(b.Cover),
         hidden: String(b.Status || '').toLowerCase() === 'hide'
       })));
       fillBrandSelect();
@@ -1355,9 +1451,9 @@
     // รายการในแท็บแบรนด์ = แบรนด์ที่ตั้งไว้ + แบรนด์ที่มีในสินค้าแต่ยังไม่ได้ตั้ง
     function initBrandAdmin() {
       if (brandsDirty) return;
-      adminBrands = BRANDS.map(b => ({ Name: b.name, OldName: b.name, Color: b.color, Logo: b.logo, Status: b.hidden ? 'Hide' : 'Show' }));
+      adminBrands = BRANDS.map(b => ({ Name: b.name, OldName: b.name, Color: b.color, Logo: b.logo, Cover: b.cover || '', Status: b.hidden ? 'Hide' : 'Show' }));
       adminProducts.forEach(p => {
-        if (p.Brand && !adminBrands.some(b => b.Name === p.Brand)) adminBrands.push({ Name: p.Brand, OldName: p.Brand, Color: '#1d3f8f', Logo: '', Status: 'Show' });
+        if (p.Brand && !adminBrands.some(b => b.Name === p.Brand)) adminBrands.push({ Name: p.Brand, OldName: p.Brand, Color: defaultColor(p.Brand), Logo: '', Cover: '', Status: 'Show' });
       });
       renderBrandAdmin();
     }
@@ -1385,7 +1481,7 @@
           </span>
           <div class="min-w-0 flex-1">
             <p class="font-head font-semibold truncate" style="color:${esc(b.Color)}">${esc(b.Name)}</p>
-            <p class="text-xs text-gray-500">${count} สินค้า${hidden ? ' · <span class="text-gray-600">ซ่อนอยู่</span>' : ''}${b.OldName && b.OldName !== b.Name ? ' · เดิมชื่อ ' + esc(b.OldName) : ''}</p>
+            <p class="text-xs text-gray-500">${count} สินค้า${b.Cover ? ' · ตั้งรูปปุ่มเอง' : ''}${hidden ? ' · <span class="text-gray-600">ซ่อนอยู่</span>' : ''}${b.OldName && b.OldName !== b.Name ? ' · เดิมชื่อ ' + esc(b.OldName) : ''}</p>
           </div>
           <button onclick="moveBrand(${i}, -1)" ${i === 0 ? 'disabled' : ''} class="${btn} bg-gray-100 hover:bg-gray-200 text-gray-600" title="เลื่อนขึ้น"><i class="fas fa-arrow-up"></i></button>
           <button onclick="moveBrand(${i}, 1)" ${i === adminBrands.length - 1 ? 'disabled' : ''} class="${btn} bg-gray-100 hover:bg-gray-200 text-gray-600" title="เลื่อนลง"><i class="fas fa-arrow-down"></i></button>
@@ -1419,7 +1515,7 @@
 
     async function editBrand(i) {
       const isNew = i < 0;
-      const b = isNew ? { Name: '', OldName: '', Color: '#1d3f8f', Logo: '', Status: 'Show' } : adminBrands[i];
+      const b = isNew ? { Name: '', OldName: '', Color: '#1d3f8f', Logo: '', Cover: '', Status: 'Show' } : adminBrands[i];
       const field = 'w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-base';
       const res = await Swal.fire({
         title: isNew ? 'เพิ่มแบรนด์' : 'แก้ไขแบรนด์',
@@ -1433,6 +1529,15 @@
           <label class="block"><span class="font-medium text-gray-600">โลโก้ (ไม่ใส่ก็ได้ จะแสดงชื่อแบรนด์เป็นตัวอักษรสีประจำแบรนด์)</span>
             <input id="bLogoFile" type="file" accept="image/*" class="w-full text-sm mt-1 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-navy-50 file:text-navy-700">
             <input id="bLogo" class="${field} text-sm" value="${esc(b.Logo)}" placeholder="หรือวางลิงก์รูปโลโก้ (Google Drive ได้)"></label>
+          <div><span class="font-medium text-gray-600">รูปบนปุ่มแบรนด์หน้าแรก</span>
+            <div class="flex gap-3 mt-1 items-start">
+              <img id="bCoverPreview" src="${esc(b.Cover ? imgUrl(b.Cover) : NO_IMAGE)}" onerror="this.src=NO_IMAGE" class="w-20 h-16 rounded-lg object-contain bg-gray-50 border border-gray-200 flex-shrink-0" alt="">
+              <div class="flex-1 min-w-0">
+                <input id="bCoverFile" type="file" accept="image/*" class="w-full text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-navy-50 file:text-navy-700">
+                <input id="bCover" class="${field} text-sm" value="${esc(b.Cover)}" placeholder="หรือวางลิงก์รูป (Google Drive ได้)">
+              </div>
+            </div>
+            <p class="text-xs text-gray-500 mt-1">เว้นว่าง = ใช้รูปสินค้าลำดับแรกของแบรนด์</p></div>
           <label class="block"><span class="font-medium text-gray-600">สถานะ</span>
             <select id="bStatus" class="${field} bg-white"><option value="Show">แสดงบนหน้าแรก</option><option value="Hide" ${b.Status === 'Hide' ? 'selected' : ''}>ซ่อน</option></select></label>
         </div>`,
@@ -1441,6 +1546,9 @@
           const pick = document.getElementById('bColorPick'), txt = document.getElementById('bColor');
           pick.addEventListener('input', () => txt.value = pick.value);
           txt.addEventListener('input', () => { if (/^#[0-9a-f]{6}$/i.test(txt.value.trim())) pick.value = txt.value.trim(); });
+          const prev = document.getElementById('bCoverPreview');
+          document.getElementById('bCover').addEventListener('input', e => prev.src = safeUrl(e.target.value) ? imgUrl(e.target.value.trim()) : NO_IMAGE);
+          document.getElementById('bCoverFile').addEventListener('change', e => { if (e.target.files[0]) prev.src = URL.createObjectURL(e.target.files[0]); });
         },
         preConfirm: async () => {
           const name = document.getElementById('bName').value.trim();
@@ -1448,18 +1556,21 @@
           if (!name) return Swal.showValidationMessage('กรุณากรอกชื่อแบรนด์');
           if (adminBrands.some((x, k) => k !== i && x.Name.toLowerCase() === name.toLowerCase())) return Swal.showValidationMessage('มีแบรนด์ชื่อนี้แล้ว');
           if (!/^#[0-9a-f]{3,8}$/i.test(color)) return Swal.showValidationMessage('สีต้องเป็นรหัสแบบ #1d3f8f');
-          let logo = document.getElementById('bLogo').value.trim();
-          const file = await getFileBase64('bLogoFile');
-          if (file) {
-            try {
-              const up = await adminPost('upload', file);
-              if (!up.success) throw new Error(up.message);
-              logo = up.data;
-            } catch (err) {
-              return Swal.showValidationMessage('อัปโหลดโลโก้ไม่สำเร็จ: ' + err.message + ' (วางลิงก์รูปแทนได้)');
-            }
+          const uploadOr = async (fileId, value) => {
+            const file = await getFileBase64(fileId);
+            if (!file) return value;
+            const up = await adminPost('upload', file);
+            if (!up.success) throw new Error(up.message);
+            return up.data;
+          };
+          let logo, cover;
+          try {
+            logo = await uploadOr('bLogoFile', document.getElementById('bLogo').value.trim());
+            cover = await uploadOr('bCoverFile', document.getElementById('bCover').value.trim());
+          } catch (err) {
+            return Swal.showValidationMessage('อัปโหลดรูปไม่สำเร็จ: ' + err.message + ' (วางลิงก์รูปแทนได้)');
           }
-          return { Name: name, OldName: b.OldName, Color: color, Logo: logo, Status: document.getElementById('bStatus').value };
+          return { Name: name, OldName: b.OldName, Color: color, Logo: logo, Cover: cover, Status: document.getElementById('bStatus').value };
         }
       });
       if (!res.isConfirmed || !res.value) return;
@@ -1757,8 +1868,54 @@
       document.body.style.overflow = 'hidden';
     }
 
+    // ---------- รูปเพิ่มเติมในฟอร์มสินค้า ----------
+    let formGallery = []; // { url } หรือ { file, preview } (ยังไม่อัปโหลด)
+
+    function renderGalleryAdmin() {
+      const box = document.getElementById('galleryAdmin');
+      box.innerHTML = formGallery.length ? formGallery.map((g, i) => `
+        <div class="relative w-20 h-20 rounded-xl overflow-hidden border border-gray-200 bg-navy-50">
+          <img src="${esc(g.preview || imgUrl(g.url))}" class="w-full h-full object-cover" onerror="this.src=NO_IMAGE" alt="">
+          ${g.file ? '<span class="absolute bottom-0 inset-x-0 text-[10px] text-center bg-sun-400 text-navy-950">รออัปโหลด</span>' : ''}
+          <button type="button" onclick="moveGallery(${i}, -1)" ${i === 0 ? 'disabled' : ''} class="absolute top-1 left-1 w-6 h-6 rounded-full bg-white/90 text-gray-600 text-[10px] disabled:hidden" title="เลื่อนไปก่อน"><i class="fas fa-chevron-left"></i></button>
+          <button type="button" onclick="removeGallery(${i})" class="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white text-[10px]" title="ลบรูปนี้"><i class="fas fa-times"></i></button>
+        </div>`).join('') : '<p class="text-xs text-gray-400">ยังไม่มีรูปเพิ่มเติม</p>';
+    }
+
+    function setFormGallery(value) {
+      formGallery = galleryList(value).map(u => ({ url: u }));
+      renderGalleryAdmin();
+    }
+
+    function addGalleryUrl() {
+      const input = document.getElementById('galleryUrlInput');
+      const urls = galleryList(input.value);
+      if (!urls.length) { toast('ลิงก์รูปต้องขึ้นต้นด้วย https://', 'warning'); return; }
+      urls.forEach(u => formGallery.push({ url: u }));
+      input.value = '';
+      renderGalleryAdmin();
+    }
+
+    function removeGallery(i) { formGallery.splice(i, 1); renderGalleryAdmin(); }
+    function moveGallery(i, d) {
+      const j = i + d;
+      if (j < 0 || j >= formGallery.length) return;
+      [formGallery[i], formGallery[j]] = [formGallery[j], formGallery[i]];
+      renderGalleryAdmin();
+    }
+
+    function readFileBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve({ base64: reader.result.split(',')[1], name: file.name, type: file.type });
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
     function showAddForm() {
       document.getElementById('productForm').reset();
+      setFormGallery('');
       document.getElementById('formID').value = '';
       document.getElementById('formTitle').innerText = 'เพิ่มสินค้าใหม่';
       openAdminForm();
@@ -1773,6 +1930,7 @@
       document.getElementById('formDesc').value = item.Description || '';
       document.getElementById('formTags').value = item.Tags || '';
       document.getElementById('formCoverURL').value = item.CoverImg || '';
+      setFormGallery(item.Gallery);
       document.getElementById('formDatasheetURL').value = item.Datasheet || '';
       document.getElementById('formManualURL').value = item.Manual || '';
       document.getElementById('formVideoURL').value = item.VideoLink || '';
@@ -1846,6 +2004,19 @@
             data[f.key] = up.data;
           }
         }
+
+        const gallery = [];
+        for (let k = 0; k < formGallery.length; k++) {
+          const g = formGallery[k];
+          if (!g.file) { gallery.push(g.url); continue; }
+          Swal.update({ title: 'กำลังอัปโหลดรูปเพิ่มเติม ' + (k + 1) + '/' + formGallery.length + '...' });
+          Swal.showLoading();
+          const up = await adminPost('upload', await readFileBase64(g.file));
+          if (!up.success) throw new Error(up.message);
+          formGallery[k] = { url: up.data };
+          gallery.push(up.data);
+        }
+        data.Gallery = gallery.join('\n');
 
         Swal.update({ title: 'กำลังบันทึกข้อมูล...' });
         Swal.showLoading();
