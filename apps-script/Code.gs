@@ -4,6 +4,7 @@
 const SHEET_ID = '1Zm0QtxOVdjRYSuXKIJ9FLO1JMO_BI673LBMtk8DBfTo';
 const FOLDER_ID = '1cvhCCc2S4W7nZCDMytgvNWhX03Zr3OT2';
 const SHEET_NAME = 'Products';
+const SALES_SHEET_NAME = 'Sales'; // ชีตรายชื่อเซลล์ (ระบบสร้างให้อัตโนมัติเมื่อบันทึกเซลล์คนแรก)
 
 // Username / Password แอดมิน: ตั้งที่ Project Settings > Script Properties
 // เพิ่ม ADMIN_USER และ ADMIN_PASS (ไม่เขียนรหัสไว้ในโค้ด เพื่อให้เก็บโค้ดบน GitHub ได้ปลอดภัย)
@@ -31,7 +32,10 @@ function doGet(e) {
   const action = (e && e.parameter && e.parameter.action) || '';
 
   if (action === 'products') {
-    return jsonOut({ success: true, data: getPublishedProducts() });
+    return jsonOut({ success: true, data: getPublishedProducts(), sales: getVisibleSales() });
+  }
+  if (action === 'sales') {
+    return jsonOut({ success: true, data: getVisibleSales() });
   }
   if (action === 'info') {
     return jsonOut({ success: true, data: getSheetInfo() });
@@ -75,6 +79,15 @@ function doPost(e) {
     }
     if (action === 'save') {
       return jsonOut(saveProduct(body.product || {}));
+    }
+    if (action === 'listSales') {
+      return jsonOut({ success: true, data: readSales() });
+    }
+    if (action === 'saveSale') {
+      return jsonOut(saveSale(body.sale || {}));
+    }
+    if (action === 'deleteSale') {
+      return jsonOut(deleteSale(body.id));
     }
     if (action === 'logout') {
       CacheService.getScriptCache().remove('tok_' + body.token);
@@ -248,6 +261,93 @@ function saveProduct(productData) {
     );
     sheet.getRange(rowIndex, 1, 1, keys.length).setValues([updateRow]);
     return { success: true, message: 'อัปเดตข้อมูลเรียบร้อย' };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// ==========================================
+// 5. ทีมเซลล์ (ชีต Sales)
+// ==========================================
+const SALES_HEADERS = ['ID', 'Name', 'Position', 'Phone', 'LINE', 'Email', 'Photo', 'Details', 'Order', 'Status'];
+
+function getSalesSheet(create) {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  let sheet = ss.getSheetByName(SALES_SHEET_NAME);
+  if (!sheet && create) {
+    sheet = ss.insertSheet(SALES_SHEET_NAME);
+    sheet.getRange(1, 1, 1, SALES_HEADERS.length).setValues([SALES_HEADERS]).setFontWeight('bold');
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function readSales() {
+  const sheet = getSalesSheet(false);
+  if (!sheet || sheet.getLastRow() < 2) return [];
+  const data = sheet.getDataRange().getDisplayValues();
+  const headers = data.shift().map(h => String(h).trim());
+  return data
+    .filter(row => row.some(cell => cell !== ''))
+    .map(row => {
+      const obj = {};
+      headers.forEach((h, c) => { obj[h] = row[c]; });
+      return obj;
+    })
+    .sort((a, b) => (Number(a.Order) || 999) - (Number(b.Order) || 999));
+}
+
+// เซลล์ที่แสดงบนหน้าเว็บ (ซ่อนคนที่ Status = Hide)
+function getVisibleSales() {
+  try {
+    return readSales().filter(s => String(s.Status || '').trim().toLowerCase() !== 'hide');
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveSale(sale) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const sheet = getSalesSheet(true);
+    const data = sheet.getDataRange().getValues();
+    const headers = data[0].map(h => String(h).trim());
+    const idCol = headers.indexOf('ID');
+
+    if (!sale.ID) {
+      sale.ID = 'S-' + new Date().getTime();
+      sheet.appendRow(headers.map(h => sale[h] || ''));
+      return { success: true, message: 'เพิ่มเซลล์เรียบร้อย' };
+    }
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][idCol]) === String(sale.ID)) {
+        const row = headers.map((h, c) => (h !== 'ID' && sale.hasOwnProperty(h)) ? (sale[h] || '') : data[i][c]);
+        sheet.getRange(i + 1, 1, 1, headers.length).setValues([row]);
+        return { success: true, message: 'อัปเดตข้อมูลเซลล์เรียบร้อย' };
+      }
+    }
+    return { success: false, message: 'ไม่พบเซลล์คนนี้' };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function deleteSale(id) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const sheet = getSalesSheet(false);
+    if (!sheet) return { success: false, message: 'ไม่พบชีต Sales' };
+    const data = sheet.getDataRange().getValues();
+    const idCol = data[0].map(h => String(h).trim()).indexOf('ID');
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][idCol]) === String(id)) {
+        sheet.deleteRow(i + 1);
+        return { success: true, message: 'ลบเซลล์เรียบร้อย' };
+      }
+    }
+    return { success: false, message: 'ไม่พบเซลล์คนนี้' };
   } finally {
     lock.releaseLock();
   }
