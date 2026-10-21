@@ -439,7 +439,7 @@ function saleVCard(id, site) {
 
 // ดึงรูปโปรไฟล์จาก Google Drive (ย่อขนาดแล้ว) เป็น base64
 function salePhotoBase64(url) {
-  const m = String(url || '').match(/(?:file\/d\/|[?&]id=|lh3\.googleusercontent\.com\/d\/)([\w-]{20,})/);
+  const m = String(url || '').trim().match(/(?:file\/d\/|[?&]id=|lh3\.googleusercontent\.com\/d\/|^)([\w-]{25,})/);
   if (!m) return null;
   try {
     const blob = DriveApp.getFileById(m[1]).getThumbnail();

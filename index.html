@@ -207,6 +207,7 @@
             <p id="resultCount" class="text-xs sm:text-sm text-gray-500"></p>
           </div>
           <button onclick="goHome()" class="ml-auto hidden sm:inline-flex items-center gap-2 text-sm text-navy-700 hover:underline"><i class="fas fa-th-large"></i> แบรนด์ทั้งหมด</button>
+          <button id="listContactBtn" onclick="openContactModal()" class="hidden ml-auto sm:ml-2 flex-shrink-0 items-center gap-1.5 bg-line hover:bg-line-dark text-white rounded-xl px-3 py-2 text-sm font-head font-medium"><i class="fas fa-headset"></i><span class="hidden sm:inline">ติดต่อฝ่ายขาย</span></button>
         </div>
         <div id="productGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5"></div>
       </section>
@@ -584,6 +585,16 @@
         .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
+    // ใน Sheet บางแถวใส่แค่รหัสไฟล์ Google Drive (ไม่มี https://) แปลงให้เป็นลิงก์
+    const LINK_FIELDS = ['CoverImg', 'Datasheet', 'Manual', 'OtherFile', 'VideoLink', 'Photo'];
+    function normalizeLinks(item) {
+      LINK_FIELDS.forEach(k => {
+        const v = String(item[k] || '').trim();
+        if (/^[\w-]{25,}$/.test(v)) item[k] = 'https://drive.google.com/file/d/' + v + '/view';
+      });
+      return item;
+    }
+
     function safeUrl(u) {
       u = String(u || '').trim();
       return /^https?:\/\//i.test(u) ? u : '';
@@ -724,10 +735,16 @@
       let footer = items.length ? contactButtonsHtml('', 'sm') : '';
       if (salesList.length) footer = `<button onclick="openContactModal()" class="bg-line hover:bg-line-dark text-white px-3 py-2 text-sm rounded-xl font-head font-medium inline-flex items-center gap-2"><i class="fas fa-headset"></i> รายชื่อเซลล์ (${salesList.length})</button>` + footer;
       document.getElementById('footerContact').innerHTML = footer || '<span class="text-sm">-</span>';
-      if (CONFIG.PHONE) {
-        document.getElementById('headerContact').innerHTML =
-          `<a href="tel:${esc(CONFIG.PHONE.replace(/[^\d+]/g, ''))}" class="hidden sm:inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/15 rounded-xl px-4 py-2 text-sm"><i class="fas fa-phone"></i> ${esc(CONFIG.PHONE)}</a>`;
+      // ปุ่ม "ติดต่อฝ่ายขาย" มุมขวาบน
+      const headerBtn = 'inline-flex items-center gap-2 bg-line hover:bg-line-dark text-white rounded-xl px-3 sm:px-4 py-2 text-sm font-head font-medium shadow-lg';
+      if (salesList.length) {
+        document.getElementById('headerContact').innerHTML = `<button onclick="openContactModal()" class="${headerBtn}"><i class="fas fa-headset"></i> ติดต่อฝ่ายขาย</button>`;
+      } else if (CONFIG.LINE_ID || CONFIG.PHONE) {
+        const href = CONFIG.LINE_ID ? lineChatLink('สนใจสินค้าโซลาร์') : 'tel:' + CONFIG.PHONE.replace(/[^\d+]/g, '');
+        document.getElementById('headerContact').innerHTML = `<a href="${esc(href)}" target="_blank" rel="noopener" class="${headerBtn}"><i class="fas fa-headset"></i> ติดต่อฝ่ายขาย</a>`;
       }
+      const lc = document.getElementById('listContactBtn');
+      lc.classList.toggle('hidden', !salesList.length); lc.classList.toggle('inline-flex', !!salesList.length);
       const fab = document.getElementById('fabLine');
       if (salesList.length) {
         fab.href = '#';
@@ -994,8 +1011,8 @@
       try {
         const res = await apiGet('products');
         if (!res.success) throw new Error(res.message);
-        clientProducts = sortProducts(res.data);
-        salesList = res.sales || [];
+        clientProducts = sortProducts(res.data.map(normalizeLinks));
+        salesList = (res.sales || []).map(normalizeLinks);
         renderSales();
         renderContacts();
         applyRoute();
@@ -1341,7 +1358,7 @@
       try {
         const res = await adminPost('listSales');
         if (!res.success) throw new Error(res.message);
-        adminSales = res.data;
+        adminSales = res.data.map(normalizeLinks);
         renderSalesTable();
       } catch (err) {
         console.error(err);
@@ -1448,7 +1465,7 @@
       try {
         const res = await adminPost('listAll');
         if (!res.success) throw new Error(res.message);
-        adminProducts = sortProducts(res.data);
+        adminProducts = sortProducts(res.data.map(normalizeLinks));
         renderAdminTable();
       } catch (err) {
         console.error(err);
