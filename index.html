@@ -1356,7 +1356,7 @@
         renderSalesTable();
       } catch (err) {
         console.error(err);
-        document.getElementById('salesTableBody').innerHTML = `<tr><td colspan="4" class="px-4 py-10 text-center text-red-500">โหลดรายชื่อเซลล์ไม่สำเร็จ (ถ้าเพิ่งอัปเดตเว็บ ให้วาง Code.gs ตัวล่าสุดแล้ว Deploy เป็น New version)</td></tr>`;
+        document.getElementById('salesTableBody').innerHTML = `<tr><td colspan="4" class="px-4 py-10 text-center text-red-500">โหลดรายชื่อเซลล์ไม่สำเร็จ (ถ้าเพิ่งอัปเดตเว็บ ให้วาง Code.gs ตัวล่าสุดแล้ว Deploy เป็น New version)<div class="mt-2 text-xs text-slate-500">สาเหตุ: ${esc(err && err.message || String(err))}</div></td></tr>`;
       }
     }
 
