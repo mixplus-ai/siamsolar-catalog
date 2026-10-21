@@ -670,6 +670,7 @@
         clientProducts = res.data;
         renderBrandChips();
         applyFilters();
+        if (!clientProducts.length) showDiagnosis();
 
         const id = new URLSearchParams(location.search).get('p');
         if (id) {
@@ -703,6 +704,27 @@
       document.getElementById('resultTitle').textContent = title;
       document.getElementById('resultCount').textContent = filtered.length + ' รายการ';
       renderClientProducts(filtered);
+    }
+
+    // ไม่มีสินค้าเลย: ถาม Apps Script ว่าเกิดอะไรขึ้น แล้วบอกบนหน้าเว็บ
+    async function showDiagnosis() {
+      let msg;
+      try {
+        const res = await apiGet('info');
+        const info = res && res.data;
+        if (!info || !info.mappedTo) {
+          msg = 'Apps Script ยังรันโค้ดเวอร์ชันเก่าอยู่ กรุณาวาง Code.gs ตัวล่าสุด แล้วไปที่ Deploy > Manage deployments > ✏️ > Version: New version > Deploy';
+        } else if (!info.totalRows) {
+          msg = 'ยังไม่มีข้อมูลสินค้าในชีต ' + 'Products';
+        } else {
+          msg = 'พบสินค้า ' + info.totalRows + ' รายการ แต่ไม่มีรายการที่สถานะเป็น Publish (ค่าที่พบ: ' +
+                Object.keys(info.statuses || {}).join(', ') + ')';
+        }
+      } catch (e) {
+        msg = 'Apps Script ยังรันโค้ดเวอร์ชันเก่าอยู่ กรุณาวาง Code.gs ตัวล่าสุด แล้วไปที่ Deploy > Manage deployments > ✏️ > Version: New version > Deploy';
+      }
+      const grid = document.getElementById('productGrid');
+      grid.insertAdjacentHTML('beforeend', `<div class="col-span-full mx-auto max-w-xl text-sm bg-sun-50 border border-sun-300 text-gray-700 rounded-xl p-4"><i class="fas fa-tools text-sun-600 mr-1"></i> <b>สำหรับแอดมิน:</b> ${esc(msg)}<br><span class="text-xs text-gray-500">API: ${esc(CONFIG.API_URL.slice(0, 60))}...</span></div>`);
     }
 
     function renderClientProducts(data) {
