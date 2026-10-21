@@ -33,6 +33,9 @@ function doGet(e) {
   if (action === 'products') {
     return jsonOut({ success: true, data: getPublishedProducts() });
   }
+  if (action === 'info') {
+    return jsonOut({ success: true, data: getSheetInfo() });
+  }
   if (action === 'ping') {
     return jsonOut({ success: true, message: 'pong' });
   }
@@ -125,7 +128,7 @@ function isValidToken(token) {
 function readProducts() {
   const sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_NAME);
   const data = sheet.getDataRange().getDisplayValues();
-  const headers = data.shift();
+  const headers = data.shift().map(h => String(h).trim());
   return data
     .filter(row => row.some(cell => cell !== ''))
     .map(row => {
@@ -136,7 +139,25 @@ function readProducts() {
 }
 
 function getPublishedProducts() {
-  return readProducts().filter(p => p.Status === 'Publish');
+  return readProducts().filter(p => String(p.Status || '').trim().toLowerCase() === 'publish');
+}
+
+// ใช้ตรวจปัญหา: ?action=info บอกชื่อคอลัมน์ จำนวนแถว และค่าในคอลัมน์ Status
+function getSheetInfo() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const sheet = ss.getSheetByName(SHEET_NAME);
+  if (!sheet) {
+    return { error: 'ไม่พบชีตชื่อ ' + SHEET_NAME, sheets: ss.getSheets().map(s => s.getName()) };
+  }
+  const rows = readProducts();
+  const statuses = {};
+  rows.forEach(p => { const k = String(p.Status); statuses[k] = (statuses[k] || 0) + 1; });
+  return {
+    headers: sheet.getRange(1, 1, 1, sheet.getLastColumn()).getDisplayValues()[0],
+    totalRows: rows.length,
+    published: getPublishedProducts().length,
+    statuses: statuses
+  };
 }
 
 function getAllProducts() {

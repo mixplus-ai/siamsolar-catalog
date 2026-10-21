@@ -50,7 +50,7 @@
 เปิดลิงก์นี้ในเบราว์เซอร์:
 
 ```
-https://script.google.com/macros/s/AKfycbxIlMZClbBFfPlHSWOzVrGUWfzBiCASUQ-Zs3Bu65J2LbqrcFtCKkaMP0qS3xHdfI7n/exec?action=products
+https://script.google.com/macros/s/AKfycbwYwKYy9nJ5T-z9SrR0UZt9QJSPF4aTSODHtXkrFQstxXqumy7s9Snw2UsaX9ciQdM2/exec?action=products
 ```
 
 ถ้าเห็นตัวหนังสือขึ้นต้นด้วย `{"success":true,"data":[...` แปลว่าผ่าน
