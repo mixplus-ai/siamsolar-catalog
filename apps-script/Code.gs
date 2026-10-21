@@ -18,9 +18,12 @@ const TOKEN_TTL = 6 * 60 * 60;
 // ฟังก์ชันกระตุ้นการขออนุญาตสิทธิ์ (รันฟังก์ชันนี้ครั้งแรกครั้งเดียว)
 // ==========================================
 function setupPermissions() {
-  var drive = DriveApp.getFiles();
-  var sheet = SpreadsheetApp.openById(SHEET_ID);
-  Logger.log("ได้รับสิทธิ์เรียบร้อยแล้ว");
+  SpreadsheetApp.openById(SHEET_ID).getName();
+  // ทดสอบเขียนไฟล์ลงโฟลเดอร์จริง แล้วลบทิ้ง (เช็คว่าบัญชีนี้มีสิทธิ์แก้ไขโฟลเดอร์)
+  var folder = DriveApp.getFolderById(FOLDER_ID);
+  var test = folder.createFile(Utilities.newBlob('test', 'text/plain', 'permission-test.txt'));
+  test.setTrashed(true);
+  Logger.log("ได้รับสิทธิ์เรียบร้อยแล้ว (โฟลเดอร์: " + folder.getName() + ")");
 }
 
 // ==========================================
