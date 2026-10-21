@@ -768,7 +768,13 @@
       if (line) html += `<a href="${esc(line)}" target="_blank" rel="noopener" class="bg-line hover:bg-line-dark text-white ${pad} rounded-xl font-head font-medium inline-flex items-center gap-1.5"><i class="fab fa-line"></i> LINE</a>`;
       if (sale.Phone) html += `<a href="tel:${esc(String(sale.Phone).replace(/[^\d+]/g, ''))}" class="bg-navy-900 hover:bg-navy-800 text-white ${pad} rounded-xl font-head font-medium inline-flex items-center gap-1.5"><i class="fas fa-phone"></i> ${esc(sale.Phone)}</a>`;
       if (sale.Email) html += `<a href="mailto:${esc(sale.Email)}?subject=${encodeURIComponent('สอบถามสินค้า ' + (productName || ''))}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 ${pad} rounded-xl font-head font-medium inline-flex items-center gap-1.5"><i class="fas fa-envelope"></i> Email</a>`;
+      if (sale.ID) html += `<a href="${esc(vcardUrl(sale))}" class="bg-sun-400 hover:bg-sun-500 text-navy-950 ${pad} rounded-xl font-head font-medium inline-flex items-center gap-1.5"><i class="fas fa-address-card"></i> บันทึกลงมือถือ</a>`;
       return html;
+    }
+
+    // ลิงก์นามบัตร .vcf (รูป ชื่อ ตำแหน่ง เบอร์ LINE) กดแล้วมือถือจะถามว่าเพิ่มรายชื่อไหม
+    function vcardUrl(sale) {
+      return CONFIG.API_URL + '?action=vcard&id=' + encodeURIComponent(sale.ID) + '&site=' + encodeURIComponent(baseUrl());
     }
 
     // การ์ดเซลล์: variant 'card' = หน้าแรก, 'row' = ในหน้าสินค้า / รายชื่อ

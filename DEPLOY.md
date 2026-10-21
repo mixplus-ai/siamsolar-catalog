@@ -116,6 +116,7 @@ https://script.google.com/macros/s/AKfycbybFFp-zjQAe7nMhKRfZazwIfctYOi9AocXldoNc
 - ข้อมูลเก็บในชีตชื่อ **Sales** ในไฟล์ Google Sheet เดียวกัน ระบบสร้างชีตนี้ให้เองตอนบันทึกเซลล์คนแรก
 - ช่อง LINE ใส่ได้ทั้ง LINE ID, `@ไอดี LINE OA` หรือลิงก์ `https://line.me/...`
 - เลือกสถานะ **ซ่อน** ถ้าไม่ต้องการให้แสดงชั่วคราว
+- ลูกค้ากดปุ่ม **บันทึกลงมือถือ** จะได้นามบัตร (.vcf) ชื่อ "Siamsolar ชื่อเซลล์" พร้อมรูป ตำแหน่ง เบอร์ อีเมล LINE และรายละเอียด แก้คำนำหน้าได้ที่ `CONTACT_PREFIX` ใน Code.gs (รูปต้องเป็นไฟล์ใน Google Drive)
 
 ## เวลาแก้ไขในอนาคต
 - **แก้สินค้า:** ใช้หน้า `/admin` หรือแก้ใน Google Sheet ได้เลย ไม่ต้อง deploy ใหม่

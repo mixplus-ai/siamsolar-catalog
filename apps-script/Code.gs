@@ -4,7 +4,8 @@
 const SHEET_ID = '1Zm0QtxOVdjRYSuXKIJ9FLO1JMO_BI673LBMtk8DBfTo';
 const FOLDER_ID = '1cvhCCc2S4W7nZCDMytgvNWhX03Zr3OT2';
 const SHEET_NAME = 'Products';
-const SALES_SHEET_NAME = 'Sales'; // ชีตรายชื่อเซลล์ (ระบบสร้างให้อัตโนมัติเมื่อบันทึกเซลล์คนแรก)
+const SALES_SHEET_NAME = 'Sales';
+const CONTACT_PREFIX = 'Siamsolar'; // ชื่อที่ขึ้นหน้าชื่อเซลล์ตอนบันทึกลงมือถือ เช่น "Siamsolar สมชาย" // ชีตรายชื่อเซลล์ (ระบบสร้างให้อัตโนมัติเมื่อบันทึกเซลล์คนแรก)
 
 // Username / Password แอดมิน: ตั้งที่ Project Settings > Script Properties
 // เพิ่ม ADMIN_USER และ ADMIN_PASS (ไม่เขียนรหัสไว้ในโค้ด เพื่อให้เก็บโค้ดบน GitHub ได้ปลอดภัย)
@@ -33,6 +34,9 @@ function doGet(e) {
 
   if (action === 'products') {
     return jsonOut({ success: true, data: getPublishedProducts(), sales: getVisibleSales() });
+  }
+  if (action === 'vcard') {
+    return saleVCard(e.parameter.id, e.parameter.site);
   }
   if (action === 'sales') {
     return jsonOut({ success: true, data: getVisibleSales() });
@@ -389,5 +393,60 @@ function deleteSale(id) {
     return { success: false, message: 'ไม่พบเซลล์คนนี้' };
   } finally {
     lock.releaseLock();
+  }
+}
+
+// นามบัตรเซลล์ (.vcf) สำหรับกด "บันทึกลงมือถือ" ใส่รูป ชื่อ ตำแหน่ง เบอร์ อีเมล LINE
+function saleVCard(id, site) {
+  const sale = getVisibleSales().find(s => String(s.ID) === String(id));
+  if (!sale) return ContentService.createTextOutput('ไม่พบข้อมูลเซลล์');
+
+  const esc = v => String(v || '').replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/([,;])/g, '\\$1');
+  const fullName = (CONTACT_PREFIX ? CONTACT_PREFIX + ' ' : '') + sale.Name;
+  const lines = [
+    'BEGIN:VCARD',
+    'VERSION:3.0',
+    'N:' + esc(sale.Name) + ';' + esc(CONTACT_PREFIX) + ';;;',
+    'FN:' + esc(fullName),
+    'ORG:' + esc(CONTACT_PREFIX)
+  ];
+  if (sale.Position) lines.push('TITLE:' + esc(sale.Position));
+  if (sale.Phone) lines.push('TEL;TYPE=CELL,VOICE:' + String(sale.Phone).replace(/[^\d+]/g, ''));
+  if (sale.Email) lines.push('EMAIL;TYPE=INTERNET,WORK:' + esc(sale.Email));
+
+  const line = String(sale.LINE || '').trim();
+  let lineUrl = '';
+  if (/^https?:\/\//i.test(line)) lineUrl = line;
+  else if (line.startsWith('@')) lineUrl = 'https://line.me/R/ti/p/' + encodeURIComponent(line);
+  else if (line) lineUrl = 'https://line.me/ti/p/~' + encodeURIComponent(line);
+  if (lineUrl) lines.push('URL;TYPE=LINE:' + lineUrl);
+  if (site && /^https:\/\/[\w.-]+\//.test(site)) lines.push('URL;TYPE=WORK:' + site);
+
+  const note = [sale.Details, line && !/^https?:/i.test(line) ? 'LINE: ' + line : ''].filter(Boolean).join('\n');
+  if (note) lines.push('NOTE:' + esc(note));
+
+  const photo = salePhotoBase64(sale.Photo);
+  if (photo) lines.push('PHOTO;ENCODING=b;TYPE=' + photo.type + ':' + photo.data);
+  lines.push('END:VCARD');
+
+  // บรรทัดยาวต้องตัดทุก 75 ตัวอักษรตามมาตรฐาน vCard
+  const folded = lines.map(l => l.length <= 75 ? l : l.match(/.{1,74}/g).join('\r\n ')).join('\r\n');
+  const fileName = fullName.replace(/[\\\/:*?"<>|]/g, '') + '.vcf';
+  return ContentService.createTextOutput(folded)
+    .setMimeType(ContentService.MimeType.VCARD)
+    .downloadAsFile(fileName);
+}
+
+// ดึงรูปโปรไฟล์จาก Google Drive (ย่อขนาดแล้ว) เป็น base64
+function salePhotoBase64(url) {
+  const m = String(url || '').match(/(?:file\/d\/|[?&]id=|lh3\.googleusercontent\.com\/d\/)([\w-]{20,})/);
+  if (!m) return null;
+  try {
+    const blob = DriveApp.getFileById(m[1]).getThumbnail();
+    if (!blob) return null;
+    const type = /png/i.test(blob.getContentType()) ? 'PNG' : 'JPEG';
+    return { type: type, data: Utilities.base64Encode(blob.getBytes()) };
+  } catch (e) {
+    return null;
   }
 }
