@@ -333,6 +333,7 @@
             <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
             <input type="search" id="adminSearch" placeholder="ค้นหาในรายการสินค้า..." class="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-navy-100">
           </div>
+          <button onclick="openSortModal()" class="bg-white border border-gray-200 hover:bg-gray-50 text-navy-900 px-5 py-3 rounded-xl font-head font-semibold shadow-card"><i class="fas fa-sort-amount-down mr-1"></i> จัดเรียงลำดับ</button>
           <button onclick="showAddForm()" class="bg-sun-400 hover:bg-sun-500 text-navy-950 px-5 py-3 rounded-xl font-head font-semibold shadow-card"><i class="fas fa-plus mr-1"></i> เพิ่มสินค้าใหม่</button>
         </div>
 
@@ -351,6 +352,30 @@
             </table>
           </div>
         </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- จัดเรียงลำดับสินค้าในแต่ละแบรนด์ -->
+    <div id="sortModal" class="fixed inset-0 z-50 hidden modal-backdrop">
+      <div class="absolute inset-0 flex items-end sm:items-center justify-center sm:p-6">
+        <div class="sheet bg-white w-full sm:max-w-2xl max-h-[94vh] rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden">
+          <div class="px-6 py-4 border-b">
+            <div class="flex items-center justify-between">
+              <h2 class="font-head text-xl font-semibold text-navy-900"><i class="fas fa-sort-amount-down text-sun-500 mr-1"></i> จัดเรียงลำดับสินค้า</h2>
+              <button onclick="closeSortModal()" class="w-9 h-9 rounded-full hover:bg-gray-100 text-gray-500"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="flex items-center gap-2 mt-3">
+              <label class="text-sm text-gray-600 whitespace-nowrap">แบรนด์</label>
+              <select id="sortBrand" class="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl bg-white"></select>
+            </div>
+            <p class="text-xs text-gray-500 mt-2">กดลูกศรเพื่อเลื่อนขึ้น/ลง หรือลากรายการ (บนคอม) สินค้าอันดับแรกที่มีรูปจะเป็นรูปบนปุ่มแบรนด์หน้าแรก</p>
+          </div>
+          <ol id="sortList" class="overflow-y-auto px-4 py-3 space-y-2 flex-1"></ol>
+          <div class="flex justify-end gap-3 px-6 py-4 border-t bg-gray-50 safe-bottom">
+            <button type="button" onclick="closeSortModal()" class="px-5 py-2.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-100">ปิด</button>
+            <button type="button" onclick="saveSortOrder()" id="btnSaveSort" class="px-5 py-2.5 bg-navy-900 text-white rounded-xl hover:bg-navy-800 font-head"><i class="fas fa-save"></i> บันทึกลำดับ</button>
+          </div>
         </div>
       </div>
     </div>
@@ -646,6 +671,13 @@
         search.value = ''; search.dispatchEvent(new Event('input')); search.focus();
       });
       document.getElementById('adminSearch').addEventListener('input', renderAdminTable);
+      document.getElementById('sortBrand').addEventListener('change', async () => {
+        if (sortDirty) {
+          const ok = await Swal.fire({ icon: 'question', title: 'ยังไม่ได้บันทึกลำดับของแบรนด์นี้', showCancelButton: true, confirmButtonText: 'เปลี่ยนแบรนด์เลย', cancelButtonText: 'ยกเลิก' });
+          if (!ok.isConfirmed) { document.getElementById('sortBrand').value = sortBrandCurrent; return; }
+        }
+        loadSortBrand();
+      });
       ['saleName', 'salePhotoURL'].forEach(id => document.getElementById(id).addEventListener('input', updateSalePreview));
       document.getElementById('fileSalePhoto').addEventListener('change', e => {
         const f = e.target.files && e.target.files[0];
@@ -849,7 +881,16 @@
       clientProducts.forEach(p => { if (p.Brand) counts[p.Brand] = (counts[p.Brand] || 0) + 1; });
       // แบรนด์ที่อยู่ใน Sheet แต่ยังไม่มีใน BRANDS ก็แสดงด้วย
       const extra = Object.keys(counts).filter(n => !BRANDS.some(b => b.name === n)).map(n => ({ name: n, color: '#1d3f8f', logo: '' }));
-      return BRANDS.concat(extra).filter(b => counts[b.name]).map(b => Object.assign({ count: counts[b.name] }, b));
+      // รูปบนปุ่มแบรนด์ = รูปของสินค้าลำดับแรกที่มีรูป (เปลี่ยนได้ด้วยการจัดเรียงในหน้าแอดมิน)
+      const cover = {};
+      clientProducts.forEach(p => { if (p.Brand && !cover[p.Brand] && safeUrl(p.CoverImg)) cover[p.Brand] = imgUrl(p.CoverImg); });
+      return BRANDS.concat(extra).filter(b => counts[b.name]).map(b => Object.assign({ count: counts[b.name], cover: cover[b.name] || '' }, b));
+    }
+
+    // เรียงตามคอลัมน์ลำดับ (Order) ที่ตั้งในหน้าแอดมิน สินค้าที่ไม่มีลำดับอยู่ท้าย ตามลำดับแถวใน Sheet
+    function sortProducts(list) {
+      const ord = p => { const n = parseFloat(p.Order); return isNaN(n) ? Infinity : n; };
+      return list.map((p, i) => [p, i]).sort((a, b) => (ord(a[0]) - ord(b[0])) || (a[1] - b[1])).map(x => x[0]);
     }
 
     function logoSrc(logo) {
@@ -861,6 +902,7 @@
     function brandMark(b, size) {
       const src = logoSrc(b.logo);
       const big = size === 'lg';
+      if (size === 'md') return src ? `<img src="${esc(src)}" alt="${esc(b.name)}" class="h-7 sm:h-8 max-w-[80%] object-contain">` : `<span class="font-head font-bold text-lg sm:text-xl leading-tight" style="color:${b.color}">${esc(b.name)}</span>`;
       if (src) return `<img src="${esc(src)}" alt="${esc(b.name)}" class="${big ? 'max-h-16 sm:max-h-20 max-w-[85%]' : 'h-9 w-9 sm:h-11 sm:w-11 rounded-xl bg-white border border-gray-200 p-1'} object-contain">`;
       if (big) return `<span class="font-head font-bold text-xl sm:text-2xl leading-tight" style="color:${b.color}">${esc(b.name)}</span>`;
       return `<span class="h-9 w-9 sm:h-11 sm:w-11 rounded-xl grid place-items-center text-white font-head font-bold text-sm sm:text-base" style="background:${b.color}">${esc(b.name.slice(0, 1))}</span>`;
@@ -869,19 +911,27 @@
     // ปุ่มแบรนด์สไตล์เดียวกับเวอร์ชันแรก (พื้นขาว ตัวหนังสือและขอบล่างสีประจำแบรนด์)
     function renderBrandGrid() {
       const brands = brandList();
-      const tile = (key, label, color, count, mark, i) => `
-        <button onclick="openBrand(${esc(JSON.stringify(key))})" class="brand-icon fade-in bg-white rounded-lg shadow hover:shadow-lg font-bold border-b-4 px-3 py-6 sm:py-9 flex flex-col items-center justify-center gap-2 text-center" style="color:${color};border-color:${color};animation-delay:${i * 40}ms">
-          ${mark}
-          <span class="text-xs sm:text-sm font-normal text-gray-500">${count} สินค้า <i class="fas fa-chevron-right text-[10px] ml-0.5"></i></span>
+      const tile = (key, color, count, mark, media, i) => `
+        <button onclick="openBrand(${esc(JSON.stringify(key))})" class="brand-icon fade-in bg-white rounded-lg shadow hover:shadow-lg font-bold border-b-4 overflow-hidden flex flex-col text-center" style="color:${color};border-color:${color};animation-delay:${i * 40}ms">
+          <span class="relative block w-full aspect-[4/3] bg-white overflow-hidden">${media}</span>
+          <span class="flex flex-col items-center gap-1 px-3 pt-2 pb-3 sm:pb-4 w-full border-t border-gray-100">
+            ${mark}
+            <span class="text-xs sm:text-sm font-normal text-gray-500">${count} สินค้า <i class="fas fa-chevron-right text-[10px] ml-0.5"></i></span>
+          </span>
         </button>`;
+      const img = src => src
+        ? `<img src="${esc(src)}" loading="lazy" alt="" class="absolute inset-0 w-full h-full object-contain p-2" onerror="this.src=NO_IMAGE">`
+        : `<img src="${NO_IMAGE}" alt="" class="absolute inset-0 w-full h-full object-cover">`;
+      // ปุ่ม ALL ใช้รูปสินค้าจาก 4 แบรนด์แรก
+      const allMedia = `<span class="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-px bg-gray-100">${brands.slice(0, 4).map(b => `<span class="relative bg-white">${img(b.cover)}</span>`).join('')}</span>`;
       document.getElementById('brandGrid').innerHTML =
-        tile('All', 'ALL', '#374151', clientProducts.length, '<span class="font-head text-xl sm:text-2xl">ALL</span>', 0) +
-        brands.map((b, i) => tile(b.name, b.name, b.color, b.count, brandMark(b, 'lg'), i + 1)).join('');
+        tile('All', '#374151', clientProducts.length, '<span class="font-head text-lg sm:text-xl">ALL</span>', allMedia, 0) +
+        brands.map((b, i) => tile(b.name, b.color, b.count, brandMark(b, 'md'), img(b.cover), i + 1)).join('');
     }
 
     function renderBrandSkeleton() {
       document.getElementById('brandGrid').innerHTML = Array.from({ length: 8 }).map(() => `
-        <div class="bg-white rounded-2xl overflow-hidden shadow-card"><div class="skeleton aspect-[3/2]"></div><div class="p-3"><div class="skeleton h-4 w-1/2 rounded"></div></div></div>`).join('');
+        <div class="bg-white rounded-lg overflow-hidden shadow"><div class="skeleton aspect-[4/3]"></div><div class="p-3"><div class="skeleton h-4 w-1/2 mx-auto rounded"></div></div></div>`).join('');
     }
 
     // ------------------------------------------
@@ -938,7 +988,7 @@
       try {
         const res = await apiGet('products');
         if (!res.success) throw new Error(res.message);
-        clientProducts = res.data;
+        clientProducts = sortProducts(res.data);
         salesList = res.sales || [];
         renderSales();
         renderContacts();
@@ -1180,6 +1230,105 @@
       });
     }
 
+    // ---------- จัดเรียงลำดับสินค้า ----------
+    let sortItems = [];
+    let sortDirty = false;
+
+    function openSortModal() {
+      const brands = [...new Set(adminProducts.map(p => p.Brand).filter(Boolean))];
+      const order = BRANDS.map(b => b.name).filter(n => brands.includes(n)).concat(brands.filter(n => !BRANDS.some(b => b.name === n)));
+      const sel = document.getElementById('sortBrand');
+      const prev = sel.value;
+      sel.innerHTML = order.map(n => `<option value="${esc(n)}">${esc(n)} (${adminProducts.filter(p => p.Brand === n).length})</option>`).join('');
+      if (prev && order.includes(prev)) sel.value = prev;
+      loadSortBrand();
+      document.getElementById('sortModal').classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+    }
+
+    let sortBrandCurrent = '';
+    function loadSortBrand() {
+      sortBrandCurrent = document.getElementById('sortBrand').value;
+      sortItems = adminProducts.filter(p => p.Brand === document.getElementById('sortBrand').value);
+      sortDirty = false;
+      renderSortList();
+    }
+
+    function renderSortList() {
+      const last = sortItems.length - 1;
+      document.getElementById('sortList').innerHTML = sortItems.map((p, i) => `
+        <li draggable="true" data-i="${i}" class="sort-row flex items-center gap-3 bg-white border border-gray-200 rounded-xl p-2 pr-2.5">
+          <span class="w-7 text-center font-head font-semibold text-navy-700">${i + 1}</span>
+          <i class="fas fa-grip-vertical text-gray-300 cursor-grab hidden sm:inline"></i>
+          <img src="${esc(imgUrl(p.CoverImg))}" class="w-11 h-11 rounded-lg object-cover bg-navy-50 flex-shrink-0" onerror="this.src=NO_IMAGE">
+          <span class="flex-1 min-w-0">
+            <span class="block text-sm font-medium text-gray-800 line-clamp-2">${esc(p.ProductName)}</span>
+            ${p.Status === 'Publish' ? '' : '<span class="text-[11px] text-gray-400">Draft (ซ่อนอยู่)</span>'}
+          </span>
+          <button onclick="moveSort(${i}, -${i})" ${i === 0 ? 'disabled' : ''} class="w-8 h-8 rounded-lg hover:bg-gray-100 text-gray-500 disabled:opacity-30" title="ขึ้นบนสุด"><i class="fas fa-angle-double-up"></i></button>
+          <button onclick="moveSort(${i}, -1)" ${i === 0 ? 'disabled' : ''} class="w-8 h-8 rounded-lg bg-navy-50 text-navy-700 hover:bg-navy-100 disabled:opacity-30" title="เลื่อนขึ้น"><i class="fas fa-arrow-up"></i></button>
+          <button onclick="moveSort(${i}, 1)" ${i === last ? 'disabled' : ''} class="w-8 h-8 rounded-lg bg-navy-50 text-navy-700 hover:bg-navy-100 disabled:opacity-30" title="เลื่อนลง"><i class="fas fa-arrow-down"></i></button>
+        </li>`).join('') || '<li class="text-center text-gray-400 py-10">ไม่มีสินค้า</li>';
+
+      // ลากวาง (คอมพิวเตอร์)
+      let from = null;
+      document.querySelectorAll('#sortList .sort-row').forEach(li => {
+        li.addEventListener('dragstart', () => { from = Number(li.dataset.i); li.classList.add('opacity-50'); });
+        li.addEventListener('dragend', () => li.classList.remove('opacity-50'));
+        li.addEventListener('dragover', e => e.preventDefault());
+        li.addEventListener('drop', e => {
+          e.preventDefault();
+          const to = Number(li.dataset.i);
+          if (from === null || from === to) return;
+          const [item] = sortItems.splice(from, 1);
+          sortItems.splice(to, 0, item);
+          sortDirty = true;
+          renderSortList();
+        });
+      });
+    }
+
+    function moveSort(i, delta) {
+      const j = Math.max(0, Math.min(sortItems.length - 1, i + delta));
+      if (i === j) return;
+      const [item] = sortItems.splice(i, 1);
+      sortItems.splice(j, 0, item);
+      sortDirty = true;
+      renderSortList();
+    }
+
+    async function saveSortOrder() {
+      const btn = document.getElementById('btnSaveSort');
+      btn.disabled = true;
+      Swal.fire({ title: 'กำลังบันทึกลำดับ...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      try {
+        const orders = sortItems.map((p, i) => ({ ID: p.ID, Order: i + 1 }));
+        const res = await adminPost('saveOrder', { orders: orders });
+        if (!res.success) throw new Error(res.message);
+        // อัปเดตในหน้าทันที
+        orders.forEach(o => { const p = adminProducts.find(x => x.ID === o.ID); if (p) p.Order = String(o.Order); });
+        adminProducts = sortProducts(adminProducts);
+        renderAdminTable();
+        sortDirty = false;
+        Swal.fire({ icon: 'success', title: res.message, timer: 1400, showConfirmButton: false });
+      } catch (err) {
+        Swal.fire('ผิดพลาด', err.message + ' (ถ้าเพิ่งอัปเดตเว็บ ให้วาง Code.gs ตัวล่าสุดแล้ว Deploy เป็น New version)', 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function closeSortModal() {
+      const m = document.getElementById('sortModal');
+      if (m.classList.contains('hidden')) return;
+      if (sortDirty) {
+        const ok = await Swal.fire({ icon: 'question', title: 'ยังไม่ได้บันทึกลำดับ', text: 'ปิดโดยไม่บันทึกใช่ไหม', showCancelButton: true, confirmButtonText: 'ปิดเลย', cancelButtonText: 'กลับไปบันทึก' });
+        if (!ok.isConfirmed) return;
+      }
+      m.classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+
     // ---------- ทีมเซลล์ (แอดมิน) ----------
     async function loadSalesAdmin() {
       document.getElementById('salesTableBody').innerHTML = `<tr><td colspan="4" class="px-4 py-3"><div class="skeleton h-10 rounded-lg"></div></td></tr>`;
@@ -1293,7 +1442,7 @@
       try {
         const res = await adminPost('listAll');
         if (!res.success) throw new Error(res.message);
-        adminProducts = res.data;
+        adminProducts = sortProducts(res.data);
         renderAdminTable();
       } catch (err) {
         console.error(err);

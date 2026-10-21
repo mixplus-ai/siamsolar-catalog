@@ -80,6 +80,9 @@ function doPost(e) {
     if (action === 'save') {
       return jsonOut(saveProduct(body.product || {}));
     }
+    if (action === 'saveOrder') {
+      return jsonOut(saveProductOrder(body.orders || []));
+    }
     if (action === 'listSales') {
       return jsonOut({ success: true, data: readSales() });
     }
@@ -152,6 +155,7 @@ const FIELD_RULES = [
   ['VideoLink',   h => h.includes('video') || h.includes('วิดีโอ')],
   ['Status',      h => h.includes('status') || h.includes('สถานะ')],
   ['OtherFile',   h => h.includes('other') || h.includes('ไฟล์อื่น')],
+  ['Order',       h => h.includes('order') || h.includes('ลำดับ')],
   ['Date',        h => h.includes('date') || h.includes('วันที่')]
 ];
 
@@ -261,6 +265,41 @@ function saveProduct(productData) {
     );
     sheet.getRange(rowIndex, 1, 1, keys.length).setValues([updateRow]);
     return { success: true, message: 'อัปเดตข้อมูลเรียบร้อย' };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// บันทึกลำดับการแสดงสินค้า: orders = [{ ID: 'row-5', Order: 1 }, ...]
+// ถ้า Sheet ยังไม่มีคอลัมน์ลำดับ ระบบจะเพิ่มคอลัมน์ "ลำดับ (Order)" ต่อท้ายให้
+function saveProductOrder(orders) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const sheet = getProductSheet();
+    const data = sheet.getDataRange().getValues();
+    const keys = headerKeys(data[0]);
+    let orderCol = keys.indexOf('Order');
+    if (orderCol === -1) {
+      orderCol = data[0].length;
+      sheet.getRange(1, orderCol + 1).setValue('ลำดับ (Order)');
+    }
+    const idCol = keys.indexOf('ID');
+    const rowOf = {};
+    for (let i = 1; i < data.length; i++) {
+      if (idCol >= 0 && data[i][idCol]) rowOf[String(data[i][idCol])] = i + 1;
+      rowOf['row-' + (i + 1)] = i + 1;
+    }
+    const lastRow = Math.max(data.length, 2);
+    const range = sheet.getRange(2, orderCol + 1, lastRow - 1, 1);
+    const values = range.getValues();
+    let changed = 0;
+    orders.forEach(o => {
+      const r = rowOf[String(o.ID)];
+      if (r) { values[r - 2][0] = Number(o.Order) || ''; changed++; }
+    });
+    range.setValues(values);
+    return { success: true, message: 'บันทึกลำดับเรียบร้อย (' + changed + ' รายการ)' };
   } finally {
     lock.releaseLock();
   }
