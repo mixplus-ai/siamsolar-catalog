@@ -174,9 +174,12 @@
     </header>
 
     <!-- Brand chips (sticky) -->
-    <div id="brandBar" class="sticky top-0 z-30 bg-white/85 backdrop-blur border-b border-gray-200/70">
+    <div id="brandBar" class="sm:sticky top-0 z-30 bg-white/85 backdrop-blur border-b border-gray-200/70">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
-        <div id="brandButtons" class="flex gap-2 overflow-x-auto no-scrollbar flex-1 -mx-1 px-1"></div>
+        <div class="flex-1">
+          <p class="sm:hidden text-center font-head font-medium text-gray-600 text-sm mb-2.5">เลือกแบรนด์สินค้า</p>
+          <div id="brandButtons" class="flex flex-wrap justify-center sm:justify-start gap-2"></div>
+        </div>
       </div>
     </div>
 
