@@ -101,8 +101,7 @@ https://script.google.com/macros/s/AKfycbzzoikkEKej0b13n-g9tBRry_AVOAvzuJSwnvIPn
 **1. เปิดสิทธิ์ Apps Script API**
 เปิด https://script.google.com/home/usersettings แล้วเปิดสวิตช์ **Google Apps Script API** เป็น **On**
 
-**2. คัดลอก Script ID**
-เปิดโปรเจกต์ใน Apps Script แล้วกด ⚙️ **Project Settings** ในหัวข้อ IDs จะมี **Script ID** กด Copy แล้วเก็บไว้
+**2. Script ID** ใส่ไว้ใน `.github/workflows/apps-script.yml` แล้ว (`1hPm9iq...uA5CT`) ถ้าย้ายไปใช้โปรเจกต์ Apps Script อื่น ให้แก้ค่า `SCRIPT_ID` ในไฟล์นั้น
 
 **3. สร้างกุญแจเชื่อมต่อ (ต้องมี Node.js ถ้ายังไม่มี ติดตั้งรุ่น LTS จาก https://nodejs.org)**
 - Mac: เปิดแอป **Terminal** / Windows: เปิด **Command Prompt**
@@ -115,7 +114,6 @@ https://script.google.com/macros/s/AKfycbzzoikkEKej0b13n-g9tBRry_AVOAvzuJSwnvIPn
 **4. ใส่กุญแจใน GitHub**
 เปิด https://github.com/mixplus-ai/siamsolar-catalog/settings/secrets/actions กด **New repository secret**
 - Name: `CLASPRC_JSON` / Secret: วางข้อความจากข้อ 3 แล้วกด **Add secret**
-- กด **New repository secret** อีกครั้ง Name: `SCRIPT_ID` / Secret: วาง Script ID จากข้อ 2
 
 **5. สั่งส่งโค้ดครั้งแรก**
 เปิด https://github.com/mixplus-ai/siamsolar-catalog/actions/workflows/apps-script.yml กด **Run workflow** แล้วกด **Run workflow** สีเขียว รอประมาณ 1 นาทีจนขึ้น ✅
