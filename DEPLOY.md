@@ -95,7 +95,19 @@ https://script.google.com/macros/s/AKfycbzzoikkEKej0b13n-g9tBRry_AVOAvzuJSwnvIPn
 
 ---
 
-## ส่งโค้ด Apps Script อัตโนมัติจาก GitHub (ตั้งครั้งเดียว)
+## วิธีที่ง่ายที่สุด: ตัวโหลดโค้ดจาก GitHub (วางครั้งเดียว ไม่ต้องใช้ Terminal)
+วางโค้ดสั้นๆ ใน Apps Script ครั้งเดียว หลังจากนั้น Apps Script จะดึงโค้ดล่าสุดจาก GitHub (`apps-script/Code.gs`) เองภายในประมาณ 5-10 นาที ไม่ต้องวางโค้ดหรือ Deploy ใหม่อีก
+
+1. เปิด https://raw.githubusercontent.com/mixplus-ai/siamsolar-catalog/main/apps-script-loader/Code.gs กด `Ctrl+A` แล้ว `Ctrl+C`
+2. ใน Apps Script เปิดไฟล์ **Code.gs** กด `Ctrl+A` แล้ว `Ctrl+V` (วางทับทั้งหมด) แล้วกด `Ctrl+S`
+3. เลือกฟังก์ชัน **setupPermissions** กด **▶ Run** แล้วกด Review permissions → เลือกบัญชี → Advanced → Go to ... → **Allow** (Log จะขึ้นว่า "ได้รับสิทธิ์และโหลดโค้ดจาก GitHub เรียบร้อย")
+4. **Deploy → Manage deployments** → ✏️ → Version: **New version** → **Deploy** (ทำครั้งสุดท้าย ลิงก์เดิมไม่เปลี่ยน)
+
+- อยากให้โค้ดใหม่มีผลทันทีโดยไม่ต้องรอ: เลือกฟังก์ชัน **clearCodeCache** แล้วกด ▶ Run
+- ถ้า GitHub ล่ม ระบบจะใช้โค้ดชุดล่าสุดที่เคยดึงได้ หน้าเว็บจึงยังใช้งานได้
+- ใครที่แก้ไฟล์ใน GitHub repo นี้ได้ จะเปลี่ยนการทำงานของ Apps Script ได้ด้วย จึงควรให้สิทธิ์เขียน repo เฉพาะคนที่ไว้ใจ
+
+## ส่งโค้ด Apps Script อัตโนมัติจาก GitHub (อีกวิธี สำหรับคนที่ใช้ Terminal ได้)
 หลังตั้งค่านี้ ทุกครั้งที่โค้ดใน `apps-script/` บน GitHub เปลี่ยน ระบบ GitHub Actions จะส่งโค้ดเข้า Apps Script และอัปเดต deployment เดิมให้เอง (ลิงก์ `/exec` ไม่เปลี่ยน) ไม่ต้องวางโค้ดเองอีก ใช้คอมพิวเตอร์ทำ ประมาณ 15 นาที
 
 **1. เปิดสิทธิ์ Apps Script API**
@@ -162,4 +174,4 @@ https://script.google.com/macros/s/AKfycbzzoikkEKej0b13n-g9tBRry_AVOAvzuJSwnvIPn
 ## เวลาแก้ไขในอนาคต
 - **แก้สินค้า:** ใช้หน้า `/admin` หรือแก้ใน Google Sheet ได้เลย ไม่ต้อง deploy ใหม่
 - **แก้หน้าเว็บ (index.html):** แก้ไฟล์บน GitHub แล้ว Netlify จะอัปเดตเองใน 1 นาที
-- **แก้ Code.gs:** ถ้าตั้งค่า "ส่งโค้ด Apps Script อัตโนมัติ" แล้ว ระบบจะส่งให้เอง ถ้ายังไม่ได้ตั้ง ต้องทำขั้น A2 และ A5 ใหม่ทุกครั้ง
+- **แก้ Code.gs:** ถ้าใช้ตัวโหลดโค้ดจาก GitHub หรือตั้งค่า "ส่งโค้ด Apps Script อัตโนมัติ" แล้ว ระบบจะส่งให้เอง ถ้ายังไม่ได้ตั้ง ต้องทำขั้น A2 และ A5 ใหม่ทุกครั้ง

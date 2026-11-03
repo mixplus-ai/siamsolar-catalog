@@ -19,3 +19,9 @@
   to = "/index.html"
   status = 404
   force = true
+
+[[redirects]]
+  from = "/apps-script-loader/*"
+  to = "/index.html"
+  status = 404
+  force = true
