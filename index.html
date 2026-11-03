@@ -855,7 +855,8 @@
     // ไฟล์สร้างโดย Netlify Function (netlify/functions/vcard.mjs) จึงไม่ต้องแก้ Apps Script
     function vcardUrl(sale) {
       const dep = (CONFIG.API_URL.match(/\/macros\/s\/([\w-]+)\//) || [])[1] || '';
-      return location.origin + '/vcard?id=' + encodeURIComponent(sale.ID) + '&d=' + encodeURIComponent(dep);
+      // openExternalBrowser=1: ถ้าเปิดเว็บจากในแอป LINE จะเด้งไปเปิดใน Safari/Chrome ซึ่งบันทึกรายชื่อได้
+      return location.origin + '/vcard?id=' + encodeURIComponent(sale.ID) + '&d=' + encodeURIComponent(dep) + '&openExternalBrowser=1';
     }
 
     // แผนกที่ให้ลูกค้าเลือกติดต่อ (ค่าในคอลัมน์ Department ของชีต Sales)
