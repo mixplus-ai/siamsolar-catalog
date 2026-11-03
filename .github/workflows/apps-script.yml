@@ -1,0 +1,67 @@
+# ส่งโค้ดใน apps-script/ เข้า Google Apps Script และอัปเดต deployment เดิม (ลิงก์ /exec ไม่เปลี่ยน)
+# ต้องตั้ง GitHub Secrets ครั้งเดียว: CLASPRC_JSON (ไฟล์ ~/.clasprc.json จาก clasp login) และ SCRIPT_ID
+name: Deploy Apps Script
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps-script/**'
+      - 'index.html'
+      - '.github/workflows/apps-script.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: apps-script
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # ยังไม่ได้ตั้ง Secrets: ข้ามไปก่อน (ไม่ขึ้นว่าล้มเหลว) ยกเว้นตอนกด Run workflow เอง
+      - name: Check secrets
+        id: chk
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+          SCRIPT_ID: ${{ secrets.SCRIPT_ID }}
+        run: |
+          if [ -n "$CLASPRC_JSON" ] && [ -n "$SCRIPT_ID" ]; then echo "ok=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          echo "ok=false" >> "$GITHUB_OUTPUT"
+          MSG="ยังไม่ได้ตั้ง Secrets CLASPRC_JSON และ SCRIPT_ID (ดู DEPLOY.md หัวข้อ ส่งโค้ด Apps Script อัตโนมัติ)"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then echo "::error::$MSG"; exit 1; fi
+          echo "::notice::$MSG"
+
+      - name: Write clasp credentials
+        if: steps.chk.outputs.ok == 'true'
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+          SCRIPT_ID: ${{ secrets.SCRIPT_ID }}
+        run: |
+          printf '%s' "$CLASPRC_JSON" > ~/.clasprc.json
+          printf '{"scriptId":"%s","rootDir":"."}' "$SCRIPT_ID" > apps-script/.clasp.json
+
+      # deployment ID = ส่วนกลางของ API_URL ใน index.html เพื่อให้หน้าเว็บกับ Apps Script ตรงกันเสมอ
+      - name: Find deployment ID
+        if: steps.chk.outputs.ok == 'true'
+        id: dep
+        run: |
+          DEP=$(grep -oE 'script\.google\.com/macros/s/[A-Za-z0-9_-]+/exec' index.html | head -1 | cut -d/ -f4)
+          if [ -z "$DEP" ]; then echo "::error::ไม่พบ API_URL ใน index.html"; exit 1; fi
+          echo "id=$DEP" >> "$GITHUB_OUTPUT"
+
+      - name: Push code
+        if: steps.chk.outputs.ok == 'true'
+        working-directory: apps-script
+        run: npx --yes @google/clasp@2.4.2 push --force
+
+      - name: Update existing deployment
+        if: steps.chk.outputs.ok == 'true'
+        working-directory: apps-script
+        run: npx --yes @google/clasp@2.4.2 deploy --deploymentId "${{ steps.dep.outputs.id }}" --description "GitHub ${GITHUB_SHA::7}"

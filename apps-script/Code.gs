@@ -52,13 +52,12 @@ function doGet(e) {
     return jsonOut({ success: true, message: 'pong' });
   }
 
-  // โหมดเดิม (HTML ใน Apps Script)
-  let mode = (e && e.parameter && e.parameter.mode === 'admin') ? 'admin' : 'client';
-  let template = HtmlService.createTemplateFromFile('Index');
-  template.mode = mode;
-  return template.evaluate()
+  // เปิดลิงก์ /exec ตรงๆ: พาไปหน้าเว็บบน Netlify (ไม่ต้องมีไฟล์ Index.html ใน Apps Script แล้ว)
+  const site = 'https://siamsolar.netlify.app/' + ((e && e.parameter && e.parameter.mode === 'admin') ? 'admin' : '');
+  return HtmlService.createHtmlOutput(
+    '<p style="font-family:sans-serif;text-align:center;margin-top:40px">' +
+    'แคตตาล็อกย้ายไปที่ <a href="' + site + '" target="_top">' + site + '</a></p>')
     .setTitle('Solar Equipment Catalog')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1.0');
 }
 

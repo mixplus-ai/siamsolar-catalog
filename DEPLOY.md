@@ -95,6 +95,37 @@ https://script.google.com/macros/s/AKfycbzzoikkEKej0b13n-g9tBRry_AVOAvzuJSwnvIPn
 
 ---
 
+## ส่งโค้ด Apps Script อัตโนมัติจาก GitHub (ตั้งครั้งเดียว)
+หลังตั้งค่านี้ ทุกครั้งที่โค้ดใน `apps-script/` บน GitHub เปลี่ยน ระบบ GitHub Actions จะส่งโค้ดเข้า Apps Script และอัปเดต deployment เดิมให้เอง (ลิงก์ `/exec` ไม่เปลี่ยน) ไม่ต้องวางโค้ดเองอีก ใช้คอมพิวเตอร์ทำ ประมาณ 15 นาที
+
+**1. เปิดสิทธิ์ Apps Script API**
+เปิด https://script.google.com/home/usersettings แล้วเปิดสวิตช์ **Google Apps Script API** เป็น **On**
+
+**2. คัดลอก Script ID**
+เปิดโปรเจกต์ใน Apps Script แล้วกด ⚙️ **Project Settings** ในหัวข้อ IDs จะมี **Script ID** กด Copy แล้วเก็บไว้
+
+**3. สร้างกุญแจเชื่อมต่อ (ต้องมี Node.js ถ้ายังไม่มี ติดตั้งรุ่น LTS จาก https://nodejs.org)**
+- Mac: เปิดแอป **Terminal** / Windows: เปิด **Command Prompt**
+- พิมพ์ `npx @google/clasp@2.4.2 login` แล้วกด Enter (ถ้าถามให้ติดตั้ง พิมพ์ y)
+- เบราว์เซอร์จะเปิดขึ้นมา ให้เลือกบัญชี Google ที่เป็นเจ้าของ Apps Script แล้วกด **Allow** จนขึ้นว่าสำเร็จ
+- เปิดไฟล์กุญแจ: Mac พิมพ์ `cat ~/.clasprc.json` / Windows พิมพ์ `type %USERPROFILE%\.clasprc.json` แล้วคัดลอกตัวหนังสือที่ขึ้นมา**ทั้งหมด** (ขึ้นต้นด้วย `{` ลงท้ายด้วย `}`)
+
+> ไฟล์นี้คือกุญแจเข้าบัญชี Google ของคุณ ห้ามส่งในแชตหรือให้ใคร วางใน GitHub Secrets เท่านั้น
+
+**4. ใส่กุญแจใน GitHub**
+เปิด https://github.com/mixplus-ai/siamsolar-catalog/settings/secrets/actions กด **New repository secret**
+- Name: `CLASPRC_JSON` / Secret: วางข้อความจากข้อ 3 แล้วกด **Add secret**
+- กด **New repository secret** อีกครั้ง Name: `SCRIPT_ID` / Secret: วาง Script ID จากข้อ 2
+
+**5. สั่งส่งโค้ดครั้งแรก**
+เปิด https://github.com/mixplus-ai/siamsolar-catalog/actions/workflows/apps-script.yml กด **Run workflow** แล้วกด **Run workflow** สีเขียว รอประมาณ 1 นาทีจนขึ้น ✅
+
+**6. อนุญาตสิทธิ์ (ครั้งเดียว)** ทำขั้น A4 (รัน `setupPermissions` แล้วกด Allow)
+
+> หลังส่งอัตโนมัติ ไฟล์ Index.html เก่าใน Apps Script จะถูกลบ ถ้าเปิดลิงก์ `/exec` ตรงๆ จะขึ้นลิงก์ไปที่ siamsolar.netlify.app แทน
+
+---
+
 ## ปัญหาที่เจอบ่อย
 
 | อาการ | วิธีแก้ |
@@ -133,4 +164,4 @@ https://script.google.com/macros/s/AKfycbzzoikkEKej0b13n-g9tBRry_AVOAvzuJSwnvIPn
 ## เวลาแก้ไขในอนาคต
 - **แก้สินค้า:** ใช้หน้า `/admin` หรือแก้ใน Google Sheet ได้เลย ไม่ต้อง deploy ใหม่
 - **แก้หน้าเว็บ (index.html):** แก้ไฟล์บน GitHub แล้ว Netlify จะอัปเดตเองใน 1 นาที
-- **แก้ Code.gs:** ต้องทำขั้น A2 และ A5 ใหม่ทุกครั้ง
+- **แก้ Code.gs:** ถ้าตั้งค่า "ส่งโค้ด Apps Script อัตโนมัติ" แล้ว ระบบจะส่งให้เอง ถ้ายังไม่ได้ตั้ง ต้องทำขั้น A2 และ A5 ใหม่ทุกครั้ง

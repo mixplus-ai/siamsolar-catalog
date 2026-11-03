@@ -13,3 +13,9 @@
   to = "/index.html"
   status = 404
   force = true
+
+[[redirects]]
+  from = "/.github/*"
+  to = "/index.html"
+  status = 404
+  force = true
