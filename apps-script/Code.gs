@@ -532,7 +532,9 @@ function saleVCard(id, site) {
 
   // บรรทัดยาวต้องตัดทุก 75 ตัวอักษรตามมาตรฐาน vCard
   const folded = lines.map(l => l.length <= 75 ? l : l.match(/.{1,74}/g).join('\r\n ')).join('\r\n');
-  const fileName = fullName.replace(/[\\\/:*?"<>|]/g, '') + '.vcf';
+  // downloadAsFile รับเฉพาะชื่อไฟล์ภาษาอังกฤษ (ชื่อไทยทำให้ขึ้น "อาร์กิวเมนต์ไม่ถูกต้อง")
+  // ชื่อที่บันทึกในรายชื่อผู้ติดต่อมาจาก FN ด้านบน จึงยังเป็นภาษาไทยตามเดิม
+  const fileName = (CONTACT_PREFIX + '-' + sale.ID).replace(/[^A-Za-z0-9_-]/g, '') + '.vcf';
   return ContentService.createTextOutput(folded)
     .setMimeType(ContentService.MimeType.VCARD)
     .downloadAsFile(fileName);
