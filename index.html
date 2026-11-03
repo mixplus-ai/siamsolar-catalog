@@ -852,8 +852,10 @@
     }
 
     // ลิงก์นามบัตร .vcf (รูป ชื่อ ตำแหน่ง เบอร์ LINE) กดแล้วมือถือจะถามว่าเพิ่มรายชื่อไหม
+    // ไฟล์สร้างโดย Netlify Function (netlify/functions/vcard.mjs) จึงไม่ต้องแก้ Apps Script
     function vcardUrl(sale) {
-      return CONFIG.API_URL + '?action=vcard&id=' + encodeURIComponent(sale.ID) + '&site=' + encodeURIComponent(baseUrl());
+      const dep = (CONFIG.API_URL.match(/\/macros\/s\/([\w-]+)\//) || [])[1] || '';
+      return location.origin + '/vcard?id=' + encodeURIComponent(sale.ID) + '&d=' + encodeURIComponent(dep);
     }
 
     // แผนกที่ให้ลูกค้าเลือกติดต่อ (ค่าในคอลัมน์ Department ของชีต Sales)
