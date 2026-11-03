@@ -847,7 +847,7 @@
       if (line) html += `<a href="${esc(line)}" target="_blank" rel="noopener" class="bg-line hover:bg-line-dark text-white ${pad} rounded-xl font-head font-medium inline-flex items-center gap-1.5"><i class="fab fa-line"></i> LINE</a>`;
       if (sale.Phone) html += `<a href="tel:${esc(String(sale.Phone).replace(/[^\d+]/g, ''))}" class="bg-navy-900 hover:bg-navy-800 text-white ${pad} rounded-xl font-head font-medium inline-flex items-center gap-1.5"><i class="fas fa-phone"></i> ${esc(sale.Phone)}</a>`;
       if (sale.Email) html += `<a href="mailto:${esc(sale.Email)}?subject=${encodeURIComponent('สอบถามสินค้า ' + (productName || ''))}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 ${pad} rounded-xl font-head font-medium inline-flex items-center gap-1.5"><i class="fas fa-envelope"></i> Email</a>`;
-      if (sale.ID) html += `<a href="${esc(vcardUrl(sale))}" class="bg-sun-400 hover:bg-sun-500 text-navy-950 ${pad} rounded-xl font-head font-medium inline-flex items-center gap-1.5"><i class="fas fa-address-card"></i> บันทึกลงมือถือ</a>`;
+      if (sale.ID) html += `<a href="${esc(vcardUrl(sale))}" onclick="saveContact(${esc(JSON.stringify(String(sale.ID)))}); return false;" class="bg-sun-400 hover:bg-sun-500 text-navy-950 ${pad} rounded-xl font-head font-medium inline-flex items-center gap-1.5"><i class="fas fa-address-card"></i> บันทึกลงมือถือ</a>`;
       return html;
     }
 
@@ -857,6 +857,58 @@
       const dep = (CONFIG.API_URL.match(/\/macros\/s\/([\w-]+)\//) || [])[1] || '';
       // openExternalBrowser=1: ถ้าเปิดเว็บจากในแอป LINE จะเด้งไปเปิดใน Safari/Chrome ซึ่งบันทึกรายชื่อได้
       return location.origin + '/vcard?id=' + encodeURIComponent(sale.ID) + '&d=' + encodeURIComponent(dep) + '&openExternalBrowser=1';
+    }
+
+    // นามบัตรสำรอง (ไม่มีรูป) ใช้เมื่อ /vcard ใช้ไม่ได้
+    function basicVCard(sale) {
+      const v = x => String(x || '').replace(/\\/g, '\\\\').replace(/\r?\n/g, '\\n').replace(/([,;])/g, '\\$1');
+      const lines = ['BEGIN:VCARD', 'VERSION:3.0', 'N:' + v(sale.Name) + ';Siamsolar;;;', 'FN:' + v('Siamsolar ' + sale.Name),
+        'ORG:Siamsolar' + (sale.Department ? ';' + v(sale.Department) : '')];
+      if (sale.Position) lines.push('TITLE:' + v(sale.Position));
+      if (sale.Phone) lines.push('TEL;TYPE=CELL,VOICE:' + String(sale.Phone).replace(/[^\d+]/g, ''));
+      if (sale.Email) lines.push('EMAIL;TYPE=INTERNET,WORK:' + v(sale.Email));
+      if (sale.Details) lines.push('NOTE:' + v(sale.Details));
+      lines.push('END:VCARD');
+      return lines.join('\r\n') + '\r\n';
+    }
+
+    // ปุ่ม "บันทึกลงมือถือ"
+    // iPhone: เปิดลิงก์ /vcard แล้ว Safari จะขึ้นหน้าเพิ่มรายชื่อ / Android และคอม: ดาวน์โหลดไฟล์ .vcf แล้วแตะเปิด
+    // ในแอป LINE: เปิดลิงก์ให้ LINE ส่งต่อไปเปิดใน Safari/Chrome
+    async function saveContact(id) {
+      const sale = salesList.find(sl => String(sl.ID) === String(id));
+      if (!sale) return;
+      const url = vcardUrl(sale);
+      const ua = navigator.userAgent;
+      const ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      if (/\bLine\//i.test(ua)) { location.href = url; return; }
+
+      Swal.fire({ title: 'กำลังสร้างนามบัตร...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      let text = '';
+      try {
+        const res = await withTimeout(fetch(url), 20000);
+        if (res.ok && /vcard/i.test(res.headers.get('content-type') || '')) text = await res.text();
+        else console.warn('vcard function:', res.status);
+      } catch (e) { console.warn('vcard function:', e); }
+
+      if (ios && text) { Swal.close(); location.href = url; return; }
+
+      const fileName = ('Siamsolar-' + sale.ID).replace(/[^A-Za-z0-9_-]/g, '') + '.vcf';
+      const blobUrl = URL.createObjectURL(new Blob([text || basicVCard(sale)], { type: 'text/vcard;charset=utf-8' }));
+      const a = document.createElement('a');
+      a.href = blobUrl; a.download = fileName;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+      Swal.fire({
+        icon: 'success', title: 'ดาวน์โหลดนามบัตรแล้ว',
+        html: ios ? 'แตะไอคอน <b>ดาวน์โหลด</b> (ลูกศร) ที่แถบด้านบน แล้วแตะไฟล์ <b>' + fileName + '</b> และกด <b>สร้างรายชื่อใหม่</b>'
+          : 'แตะไฟล์ <b>' + fileName + '</b> ที่แจ้งเตือนดาวน์โหลด (หรือในแอป Files/ไฟล์) แล้วเลือก <b>รายชื่อติดต่อ</b> เพื่อบันทึก',
+        confirmButtonText: 'ตกลง', confirmButtonColor: '#0b1f4d'
+      });
+    }
+
+    function withTimeout(promise, ms) {
+      return Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))]);
     }
 
     // แผนกที่ให้ลูกค้าเลือกติดต่อ (ค่าในคอลัมน์ Department ของชีต Sales)
